@@ -24,6 +24,9 @@
 #include "catapult/cache_core/AccountStateCacheUtils.h"
 #include "catapult/model/InflationCalculator.h"
 #include "catapult/model/Mosaic.h"
+#include "catapult/utils/Logging.h"
+#include "plugins/txes/price/src/observers/priceUtil.cpp"
+// Not ideal but the implementation file can't be found otherwise before the header is included
 
 namespace catapult { namespace observers {
 
@@ -77,8 +80,30 @@ namespace catapult { namespace observers {
 
 	DECLARE_OBSERVER(HarvestFee, Notification)(const HarvestFeeOptions& options, const model::InflationCalculator& calculator) {
 		return MAKE_OBSERVER(HarvestFee, Notification, ([options, calculator](const Notification& notification, ObserverContext& context) {
-			auto inflationAmount = calculator.getSpotAmount(context.Height);
-			auto totalAmount = notification.TotalFee + inflationAmount;
+
+			Amount totalAmount = Amount(0);
+			Amount inflationAmount = Amount(0);
+			if (NotifyMode::Commit == context.Mode) {
+				double multiplier = catapult::plugins::getCoinGenerationMultiplier(context.Height.unwrap());
+				catapult::plugins::epochFees += notification.TotalFee.unwrap();
+				// 2% of existing supply multiplied by blocks per year: 365 * 24 * 120
+				inflationAmount = Amount(static_cast<uint64_t>
+					((double)catapult::plugins::totalSupply * 0.02 * multiplier / 1051200));
+				catapult::plugins::totalSupply += inflationAmount.unwrap();
+				totalAmount = Amount(catapult::plugins::getFeeToPay(context.Height.unwrap()) + inflationAmount.unwrap());
+			} else if (NotifyMode::Rollback == context.Mode) {
+				double multiplier = catapult::plugins::getCoinGenerationMultiplier(context.Height.unwrap(), true);
+				// subtract the generated coins from the total supply
+				catapult::plugins::totalSupply = static_cast<uint64_t>(1051200 *
+					(double)catapult::plugins::totalSupply / (1051200 + 0.02 * multiplier) + 0.5);
+				inflationAmount = Amount(static_cast<uint64_t>
+					((double)catapult::plugins::totalSupply * 0.02 * multiplier / 1051200));
+				totalAmount = Amount(catapult::plugins::getFeeToPay(context.Height.unwrap(), true) + inflationAmount.unwrap());
+				catapult::plugins::epochFees -= notification.TotalFee.unwrap();
+				CATAPULT_LOG(error) << "ROLLBACK " << catapult::plugins::getFeeToPay(context.Height.unwrap(), true) << "\n";
+				CATAPULT_LOG(error) << "ROLLBACK2 " << inflationAmount.unwrap() << "\n";
+				CATAPULT_LOG(error) << "ROLLBACK3 " << catapult::plugins::totalSupply << "\n";
+			}
 
 			auto networkAmount = Amount(totalAmount.unwrap() * options.HarvestNetworkPercentage / 100);
 			auto beneficiaryAmount = ShouldShareFees(notification, options.HarvestBeneficiaryPercentage)

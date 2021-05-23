@@ -65,7 +65,10 @@ namespace catapult { namespace model {
 		RestrictionMosaic = 0x51,
 
 		/// Transfer facility code.
-		Transfer = 0x54
+		Transfer = 0x54,
+		
+		/// Price facility code.
+		Price = 0x56
 	};
 
 #if defined(__GNUC__)

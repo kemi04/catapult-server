@@ -38,6 +38,7 @@ namespace catapult { namespace validators {
 		COPY_FACILITY_CODE(Mosaic),
 		COPY_FACILITY_CODE(Multisig),
 		COPY_FACILITY_CODE(Namespace),
+		COPY_FACILITY_CODE(Price),
 		COPY_FACILITY_CODE(RestrictionAccount),
 		COPY_FACILITY_CODE(RestrictionMosaic),
 		COPY_FACILITY_CODE(Transfer),
