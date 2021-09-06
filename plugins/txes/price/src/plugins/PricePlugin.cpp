@@ -28,6 +28,9 @@
 #include "catapult/crypto/OpensslKeyUtils.h"
 #include "catapult/model/Address.h"
 #include "catapult/plugins/PluginManager.h"
+#include "src/observers/priceUtil.h"
+#include "src/config/PriceConfiguration.h"
+#include <string>
 
 namespace catapult { namespace plugins {
 
@@ -41,6 +44,15 @@ namespace catapult { namespace plugins {
 		manager.addObserverHook([](auto& builder) {
 			builder.add(observers::CreatePriceMessageObserver());
 		});
+		
+        auto config = catapult::model::LoadPluginConfiguration<config::PriceConfiguration>(manager.config(), "catapult.plugins.price");
+		catapult::plugins::initialSupply = config.initialSupply;
+		catapult::plugins::pricePublisherAddress = config.pricePublisherAddress;
+		catapult::plugins::feeRecalculationFrequency = config.feeRecalculationFrequency;
+		catapult::plugins::multiplierRecalculationFrequency = config.multiplierRecalculationFrequency;
+		catapult::plugins::pricePeriodBlocks = config.pricePeriodBlocks;
+		catapult::plugins::networkIdentifier = config.networkIdentifier;
+		configToFile();
 	}
 }}
 
