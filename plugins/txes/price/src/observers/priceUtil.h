@@ -40,7 +40,8 @@ namespace catapult {
         // number of blocks to be included in calculating price averages (originally 30 days)
         extern uint64_t pricePeriodBlocks;
 
-        extern std::string networkIdentifier;
+        // total supply and epoch fee entry life timein terms of blocks
+        extern uint64_t entryLifetime;
 
 
 

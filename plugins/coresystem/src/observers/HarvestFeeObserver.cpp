@@ -118,7 +118,7 @@ namespace catapult { namespace observers {
 				if (context.Height.unwrap() % catapult::plugins::feeRecalculationFrequency == 0) {
 					collectedEpochFees = 0u;
 				}
-				collectedEpochFees += notification.TotalFee.unwrap() + context.Height.unwrap();
+				collectedEpochFees += notification.TotalFee.unwrap();
 				catapult::plugins::addEpochFeeEntry(context.Height.unwrap(), collectedEpochFees, feeToPay, model::AddressToString(notification.Beneficiary));
 				if (catapult::plugins::totalSupply.size() > 0) {
 					for (itTotal = catapult::plugins::totalSupply.rbegin(); itTotal != catapult::plugins::totalSupply.rend(); ++itTotal) {
