@@ -41,6 +41,7 @@ namespace catapult { namespace plugins {
 		catapult::plugins::feeRecalculationFrequency = config.feeRecalculationFrequency;
 		catapult::plugins::multiplierRecalculationFrequency = config.multiplierRecalculationFrequency;
 		catapult::plugins::pricePeriodBlocks = config.pricePeriodBlocks;
+		catapult::plugins::entryLifetime = config.entryLifetime;
 		configToFile();
 
 		manager.addTransactionSupport(CreatePriceTransactionPlugin());

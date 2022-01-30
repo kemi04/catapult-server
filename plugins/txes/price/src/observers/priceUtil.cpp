@@ -55,7 +55,7 @@ namespace catapult { namespace plugins {
     uint64_t feeRecalculationFrequency = 0;
     uint64_t multiplierRecalculationFrequency = 0;
     uint64_t pricePeriodBlocks = 0;
-    std::string networkIdentifier = "";
+    uint64_t entryLifetime = 0;
 
     //region block_reward
 
@@ -72,6 +72,8 @@ namespace catapult { namespace plugins {
             multiplierRecalculationFrequency = stoul(line);
             getline(fr, line);
             pricePeriodBlocks = stoul(line);
+            getline(fr, line);
+            entryLifetime = stoul(line);
         } catch (...) {
             CATAPULT_LOG(error) << "Error: price config file is invalid, network-config file may be missing price plugin information.";
             CATAPULT_LOG(error) << "Price plugin configuration includes: initialSupply, pricePublisherPublicKey, feeRecalculationFrequency, multiplierRecalculationFrequency, and pricePeriodBlocks";
@@ -86,6 +88,7 @@ namespace catapult { namespace plugins {
         fw << feeRecalculationFrequency << "\n";
         fw << multiplierRecalculationFrequency << "\n";
         fw << pricePeriodBlocks << "\n";
+        fw << entryLifetime << "\n";
     }
 
     // leave up to 10 significant figures (max 5 decimal digits)
@@ -321,12 +324,12 @@ namespace catapult { namespace plugins {
     //region price_helper
 
     void removeOldPrices(uint64_t blockHeight) {
-        if (blockHeight < 345600u + 100u) // no old blocks (store additional 100 blocks in case of a rollback)
+        if (blockHeight < 345600u + entryLifetime) // no old blocks (store some additional blocks in case of a rollback)
             return;
         bool updated = false;
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t, double>>::iterator it;
         for (it = priceList.begin(); it != priceList.end(); ++it) {
-            if (std::get<0>(*it) < blockHeight - 345599u - 100u) { // older than 120 days + 100 blocks
+            if (std::get<0>(*it) < blockHeight - 345599u - entryLifetime) { // older than 120 days + some entryLifetime blocks
                 priceList.erase(it);
                 updated = true;
             }
@@ -552,12 +555,12 @@ namespace catapult { namespace plugins {
     //region total_supply_helper
 
     void removeOldTotalSupplyEntries(uint64_t blockHeight) {
-        if (blockHeight < 100u)
+        if (blockHeight < entryLifetime)
             return;
         bool updated = false;
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t>>::iterator it;
         for (it = totalSupply.begin(); it != totalSupply.end(); ++it) {
-            if (std::get<0>(*it) < blockHeight - 99u) { // older than 100 blocks
+            if (std::get<0>(*it) < blockHeight - entryLifetime + 1) { // older than entryLifetime blocks
                 totalSupply.erase(it);
                 updated = true;
             }
@@ -766,12 +769,12 @@ namespace catapult { namespace plugins {
     //region epoch_fees_helper
 
     void removeOldEpochFeeEntries(uint64_t blockHeight) {
-        if (blockHeight < 100u)
+        if (blockHeight < entryLifetime)
             return;
         bool updated = false;
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t, std::string>>::iterator it;
         for (it = epochFees.begin(); it != epochFees.end(); ++it) {
-            if (std::get<0>(*it) < blockHeight - 99u) { // older than 100 blocks
+            if (std::get<0>(*it) < blockHeight - entryLifetime + 1) { // older than some entryLifetime blocks
                 epochFees.erase(it);
                 updated = true;
             }

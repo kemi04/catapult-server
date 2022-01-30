@@ -40,6 +40,8 @@ namespace catapult { namespace config {
 
 		uint64_t pricePeriodBlocks;
 
+		uint64_t entryLifetime;
+
 	private:
 		PriceConfiguration() = default;
 
