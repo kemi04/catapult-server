@@ -43,6 +43,9 @@ namespace catapult {
         // total supply and epoch fee entry life timein terms of blocks
         extern uint64_t entryLifetime;
 
+        // max number of coins
+        extern uint64_t generationCeiling;
+
 
 
         //region block_reward

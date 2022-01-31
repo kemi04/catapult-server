@@ -131,8 +131,8 @@ namespace catapult { namespace observers {
 					CATAPULT_LOG(warning) << "Warning: total supply list is empty\n";
 				}
 				inflation = static_cast<uint64_t>(static_cast<double>(totalSupply) * multiplier / 52560000 + 0.5);
-				if (totalSupply + inflation > 100000000000) {
-					inflation = 100000000000 - totalSupply;
+				if (totalSupply + inflation > catapult::plugins::generationCeiling) {
+					inflation = catapult::plugins::generationCeiling - totalSupply;
 				}
 				totalSupply += inflation;
 				if (context.Height.unwrap() > 1) {
@@ -180,8 +180,8 @@ namespace catapult { namespace observers {
 					CATAPULT_LOG(error) << "Error: total supply list is empty, rollback mode\n";
 				}
 				inflation = static_cast<uint64_t>(static_cast<double>(totalSupply) * multiplier / 52560000 + 0.5);
-				if (totalSupply + inflation > 100000000000) {
-					inflation = 100000000000 - totalSupply;
+				if (totalSupply + inflation > catapult::plugins::generationCeiling) {
+					inflation = catapult::plugins::generationCeiling - totalSupply;
 				}
 
 				inflationAmount = Amount(inflation);
