@@ -41,10 +41,11 @@ namespace catapult { namespace config {
 		LOAD_PROPERTY(multiplierRecalculationFrequency);
 		LOAD_PROPERTY(pricePeriodBlocks);
 		LOAD_PROPERTY(entryLifetime);
+		LOAD_PROPERTY(generationCeiling);
 
 #undef LOAD_PROPERTY
 
-		utils::VerifyBagSizeExact(bag, 6);
+		utils::VerifyBagSizeExact(bag, 7);
 		return config;
 	}
 }}

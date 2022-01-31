@@ -42,6 +42,8 @@ namespace catapult { namespace config {
 
 		uint64_t entryLifetime;
 
+		uint64_t generationCeiling;
+
 	private:
 		PriceConfiguration() = default;
 

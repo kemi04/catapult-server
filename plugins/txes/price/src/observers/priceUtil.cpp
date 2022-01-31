@@ -56,6 +56,7 @@ namespace catapult { namespace plugins {
     uint64_t multiplierRecalculationFrequency = 0;
     uint64_t pricePeriodBlocks = 0;
     uint64_t entryLifetime = 0;
+    uint64_t generationCeiling = 0;
 
     //region block_reward
 
@@ -74,6 +75,8 @@ namespace catapult { namespace plugins {
             pricePeriodBlocks = stoul(line);
             getline(fr, line);
             entryLifetime = stoul(line);
+            getline(fr, line);
+            generationCeiling = stoul(line);
         } catch (...) {
             CATAPULT_LOG(error) << "Error: price config file is invalid, network-config file may be missing price plugin information.";
             CATAPULT_LOG(error) << "Price plugin configuration includes: initialSupply, pricePublisherPublicKey, feeRecalculationFrequency, multiplierRecalculationFrequency, and pricePeriodBlocks";
@@ -89,6 +92,7 @@ namespace catapult { namespace plugins {
         fw << multiplierRecalculationFrequency << "\n";
         fw << pricePeriodBlocks << "\n";
         fw << entryLifetime << "\n";
+        fw << generationCeiling << "\n";
     }
 
     // leave up to 10 significant figures (max 5 decimal digits)
@@ -580,7 +584,7 @@ namespace catapult { namespace plugins {
         uint64_t previousEntryHeight, previousEntrySupply;
 
         if (increase > supplyAmount) {
-            CATAPULT_LOG(error) << "Error: increase can't be bigger than total supply amount\n";
+            CATAPULT_LOG(error) << "Error: increase can't be bigger than total supply amount: " << increase << ", " << supplyAmount << "\n";
             return false;
         }
 
