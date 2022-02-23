@@ -48,6 +48,21 @@ namespace catapult {
         // max number of coins
         extern uint64_t generationCeiling;
 
+        extern const std::string supplyDirectory;
+        extern std::vector<std::string> supplyFields;
+        extern cache::RocksDatabaseSettings supplySettings;
+        extern std::unique_ptr<cache::RocksDatabase> supplyDB;
+
+        extern const std::string feesDirectory;
+        extern std::vector<std::string> feesFields;
+        extern cache::RocksDatabaseSettings feesSettings;
+        extern std::unique_ptr<cache::RocksDatabase> feesDB;
+        
+        extern const std::string priceDirectory;
+        extern std::vector<std::string> priceFields;
+        extern cache::RocksDatabaseSettings priceSettings;
+        extern std::unique_ptr<cache::RocksDatabase> priceDB;
+
         //region block_reward
         void configToFile();
         void readConfig();

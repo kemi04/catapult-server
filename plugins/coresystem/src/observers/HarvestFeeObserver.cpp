@@ -119,7 +119,9 @@ namespace catapult { namespace observers {
 					collectedEpochFees = 0u;
 				}
 				collectedEpochFees += notification.TotalFee.unwrap();
-				catapult::plugins::addEpochFeeEntry(context.Height.unwrap(), collectedEpochFees, feeToPay, model::AddressToString(notification.Beneficiary));
+				if (context.Height.unwrap() > 1) {
+					catapult::plugins::addEpochFeeEntry(context.Height.unwrap(), collectedEpochFees, feeToPay, model::AddressToString(notification.Beneficiary));
+				}
 				if (catapult::plugins::totalSupply.size() > 0) {
 					for (itTotal = catapult::plugins::totalSupply.rbegin(); itTotal != catapult::plugins::totalSupply.rend(); ++itTotal) {
 						if (context.Height.unwrap() > std::get<0>(*itTotal)) {

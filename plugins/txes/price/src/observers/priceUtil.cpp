@@ -47,6 +47,21 @@ namespace catapult { namespace plugins {
     uint64_t entryLifetime = 0;
     uint64_t generationCeiling = 0;
 
+    const std::string supplyDirectory = "./data/supply";
+    std::vector<std::string> supplyFields {"default"};
+    cache::RocksDatabaseSettings supplySettings(supplyDirectory, supplyFields, cache::FilterPruningMode::Disabled);
+    std::unique_ptr<cache::RocksDatabase> supplyDB = std::make_unique<cache::RocksDatabase>();
+
+    const std::string feesDirectory = "./data/fees";
+    std::vector<std::string> feesFields {"default"};
+    cache::RocksDatabaseSettings feesSettings(feesDirectory, feesFields, cache::FilterPruningMode::Disabled);
+    std::unique_ptr<cache::RocksDatabase> feesDB = std::make_unique<cache::RocksDatabase>();
+    
+    const std::string priceDirectory = "./data/price";
+    std::vector<std::string> priceFields {"default"};
+    cache::RocksDatabaseSettings priceSettings(priceDirectory, priceFields, cache::FilterPruningMode::Disabled);
+    std::unique_ptr<cache::RocksDatabase> priceDB = std::make_unique<cache::RocksDatabase>();
+
     //region block_reward
 
     void readConfig() {
@@ -377,10 +392,9 @@ namespace catapult { namespace plugins {
     }
 
     void removePrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, double multiplier) {
-        const std::string priceDirectory = "./data/price";
-        std::vector<std::string> priceFields {"default"};
-        cache::RocksDatabaseSettings priceSettings(priceDirectory, priceFields, cache::FilterPruningMode::Disabled);
-        cache::RocksDatabase priceDB(priceSettings);
+        if (priceDB->columnFamilyNames().size() == 0) {
+            priceDB.reset(new cache::RocksDatabase(priceSettings));
+        }
 
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t, double>>::reverse_iterator it;
         for (it = priceList.rbegin(); it != priceList.rend(); ++it) {
@@ -396,17 +410,15 @@ namespace catapult { namespace plugins {
                 break;
             }
         }
-        priceDB.del(0, rocksdb::Slice(std::to_string(blockHeight)));
-        priceDB.flush();
+        priceDB->del(0, rocksdb::Slice(std::to_string(blockHeight)));
+        priceDB->flush();
         updatePricesFile();
     }
 
     void addPriceEntryToFile(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, double multiplier) {
-        
-        const std::string priceDirectory = "./data/price";
-        std::vector<std::string> priceFields {"default"};
-        cache::RocksDatabaseSettings priceSettings(priceDirectory, priceFields, cache::FilterPruningMode::Disabled);
-        cache::RocksDatabase priceDB(priceSettings);
+        if (priceDB->columnFamilyNames().size() == 0) {
+            priceDB.reset(new cache::RocksDatabase(priceSettings));
+        }
 
         std::string priceData[PRICE_DATA_SIZE - 1] = {
             std::to_string(lowPrice),
@@ -429,8 +441,8 @@ namespace catapult { namespace plugins {
             priceData[0] += priceData[i];
         }
 
-        priceDB.put(0, rocksdb::Slice(std::to_string(blockHeight)), priceData[0]);
-        priceDB.flush();
+        priceDB->put(0, rocksdb::Slice(std::to_string(blockHeight)), priceData[0]);
+        priceDB->flush();
     }
 
     void updatePricesFile() {
@@ -467,10 +479,12 @@ namespace catapult { namespace plugins {
     }
 
     void loadPricesFromFile(uint64_t blockHeight) {
-        const std::string priceDirectory = "./data/price";
-        std::vector<std::string> priceFields {"default"};
-        cache::RocksDatabaseSettings priceSettings(priceDirectory, priceFields, cache::FilterPruningMode::Disabled);
-        cache::RocksDatabase priceDB(priceSettings);
+        if (blockHeight <= 1) {
+            return;
+        }
+        if (priceDB->columnFamilyNames().size() == 0) {
+            priceDB.reset(new cache::RocksDatabase(priceSettings));
+        }
         cache::RdbDataIterator result;
         std::string values[PRICE_DATA_SIZE - 1];
         uint64_t key = blockHeight - 345599u - entryLifetime;
@@ -478,7 +492,7 @@ namespace catapult { namespace plugins {
             key = 0;
         }
         while (key < blockHeight) {
-            priceDB.get(0, rocksdb::Slice(std::to_string(key)), result);
+            priceDB->get(0, rocksdb::Slice(std::to_string(key)), result);
             if (result.storage().empty()) {
                 key++;
                 continue;
@@ -562,10 +576,9 @@ namespace catapult { namespace plugins {
     }
 
     void removeTotalSupplyEntry(uint64_t blockHeight, uint64_t supplyAmount, uint64_t increase) {
-        const std::string supplyDirectory = "./data/supply";
-        std::vector<std::string> supplyFields {"default"};
-        cache::RocksDatabaseSettings supplySetting(supplyDirectory, supplyFields, cache::FilterPruningMode::Disabled);
-        cache::RocksDatabase supplyDB(supplySetting);
+        if (supplyDB->columnFamilyNames().size() == 0) {
+            supplyDB.reset(new cache::RocksDatabase(supplySettings));
+        }
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t>>::reverse_iterator it;
         for (it = totalSupply.rbegin(); it != totalSupply.rend(); ++it) {
             if (blockHeight > std::get<0>(*it))
@@ -579,17 +592,15 @@ namespace catapult { namespace plugins {
                 break;
             }
         }
-        supplyDB.del(0, rocksdb::Slice(std::to_string(blockHeight)));
-        supplyDB.flush();
+        supplyDB->del(0, rocksdb::Slice(std::to_string(blockHeight)));
+        supplyDB->flush();
         updateTotalSupplyFile(); // update data in the file
     }
 
     void addTotalSupplyEntryToFile(uint64_t blockHeight, uint64_t supplyAmount, uint64_t increase) {
-        
-        const std::string supplyDirectory = "./data/supply";
-        std::vector<std::string> supplyFields {"default"};
-        cache::RocksDatabaseSettings supplySetting(supplyDirectory, supplyFields, cache::FilterPruningMode::Disabled);
-        cache::RocksDatabase supplyDB(supplySetting);
+        if (supplyDB->columnFamilyNames().size() == 0) {
+            supplyDB.reset(new cache::RocksDatabase(supplySettings));
+        }
 
         std::string supplyData[SUPPLY_DATA_SIZE - 1] = {
             std::to_string(supplyAmount),
@@ -606,8 +617,8 @@ namespace catapult { namespace plugins {
             supplyData[0] += supplyData[i];
         }
 
-        supplyDB.put(0, rocksdb::Slice(std::to_string(blockHeight)), supplyData[0]);
-        supplyDB.flush();
+        supplyDB->put(0, rocksdb::Slice(std::to_string(blockHeight)), supplyData[0]);
+        supplyDB->flush();
     }
 
     void updateTotalSupplyFile() {
@@ -640,10 +651,12 @@ namespace catapult { namespace plugins {
     }
 
     void loadTotalSupplyFromFile(uint64_t blockHeight) {
-        const std::string supplyDirectory = "./data/supply";
-        std::vector<std::string> supplyFields {"default"};
-        cache::RocksDatabaseSettings supplySetting(supplyDirectory, supplyFields, cache::FilterPruningMode::Disabled);
-        cache::RocksDatabase supplyDB(supplySetting);
+        if (blockHeight <= 1) {
+            return;
+        }
+        if (supplyDB->columnFamilyNames().size() == 0) {
+            supplyDB.reset(new cache::RocksDatabase(supplySettings));
+        }
         cache::RdbDataIterator result;
         std::string values[SUPPLY_DATA_SIZE - 1];
         uint64_t key = blockHeight - entryLifetime + 1;
@@ -651,7 +664,7 @@ namespace catapult { namespace plugins {
             key = 0;
         }
         while (key < blockHeight) {
-            supplyDB.get(0, rocksdb::Slice(std::to_string(key)), result);
+            supplyDB->get(0, rocksdb::Slice(std::to_string(key)), result);
             if (result.storage().empty()) {
                 key++;
                 continue;
@@ -724,10 +737,9 @@ namespace catapult { namespace plugins {
     }
 
     void removeEpochFeeEntry(uint64_t blockHeight, uint64_t collectedFees, uint64_t blockFee, std::string address) {
-        const std::string feesDirectory = "./data/fees";
-        std::vector<std::string> feesFields {"default"};
-        cache::RocksDatabaseSettings feesSetting(feesDirectory, feesFields, cache::FilterPruningMode::Disabled);
-        cache::RocksDatabase feesDB(feesSetting);
+        if (feesDB->columnFamilyNames().size() == 0) {
+            feesDB.reset(new cache::RocksDatabase(feesSettings));
+        }
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t, std::string>>::reverse_iterator it;
         for (it = epochFees.rbegin(); it != epochFees.rend(); ++it) {
             if (blockHeight > std::get<0>(*it))
@@ -744,7 +756,7 @@ namespace catapult { namespace plugins {
         cache::RdbDataIterator result;
         do {
             i++;
-            feesDB.get(0, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), result);
+            feesDB->get(0, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), result);
             if (result.storage().empty()) {
                 empty++;
                 if (empty > 5) {
@@ -754,32 +766,30 @@ namespace catapult { namespace plugins {
                 empty = 0;
             }
             if (result.storage().ToString() == std::to_string(collectedFees)) {
-                feesDB.get(1, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), result);
+                feesDB->get(1, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), result);
                 if (result.storage().ToString() == std::to_string(blockFee)) {
-                    feesDB.get(2, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), result);
+                    feesDB->get(2, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), result);
                     if (result.storage().ToString() == address) {
-                        feesDB.del(0, rocksdb::Slice(std::to_string(blockHeight)));
+                        feesDB->del(0, rocksdb::Slice(std::to_string(blockHeight)));
                     }
                 }
             }
         } while (!result.storage().empty());
-        feesDB.flush();
+        feesDB->flush();
         updateEpochFeeFile(); // update data in the file
     }
 
     void addEpochFeeEntryToFile(uint64_t blockHeight, uint64_t collectedFees, uint64_t blockFee, std::string address) {
-
-        const std::string feesDirectory = "./data/fees";
-        std::vector<std::string> feesFields {"default"};
-        cache::RocksDatabaseSettings feesSetting(feesDirectory, feesFields, cache::FilterPruningMode::Disabled);
-        cache::RocksDatabase feesDB(feesSetting);
+        if (feesDB->columnFamilyNames().size() == 0) {
+            feesDB.reset(new cache::RocksDatabase(feesSettings));
+        }
 
         int i = -1;
         cache::RdbDataIterator result;
         do {
             result.storage().clear();
             i++;
-            feesDB.get(0, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), result);
+            feesDB->get(0, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), result);
         } while (!result.storage().empty());
 
 
@@ -803,8 +813,9 @@ namespace catapult { namespace plugins {
         for (int k = 1; k < EPOCH_FEES_DATA_SIZE - 1; k++) {
             epochFeesData[0] += epochFeesData[k];
         }
-        feesDB.put(0, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), epochFeesData[0]);
-        feesDB.flush();
+        CATAPULT_LOG(warning) << "PUTTING: " << std::to_string(blockHeight) + "-" + std::to_string(i);
+        feesDB->put(0, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), epochFeesData[0]);
+        feesDB->flush();
     }
 
     void updateEpochFeeFile() {
@@ -841,10 +852,12 @@ namespace catapult { namespace plugins {
     }
 
     void loadEpochFeeFromFile(uint64_t blockHeight) {
-        const std::string feesDirectory = "./data/fees";
-        std::vector<std::string> feesFields {"default"};
-        cache::RocksDatabaseSettings feesSetting(feesDirectory, feesFields, cache::FilterPruningMode::Disabled);
-        cache::RocksDatabase feesDB(feesSetting);
+        if (blockHeight <= 1) {
+            return;
+        }
+        if (feesDB->columnFamilyNames().size() == 0) {
+            feesDB.reset(new cache::RocksDatabase(feesSettings));
+        }
         cache::RdbDataIterator result;
         std::string values[EPOCH_FEES_DATA_SIZE - 1];
         uint64_t key = blockHeight - entryLifetime + 1;
@@ -854,20 +867,23 @@ namespace catapult { namespace plugins {
         int empty = 0, i = 0;
         while (key < blockHeight) {
             while (empty < 5) {
-                feesDB.get(0, rocksdb::Slice(std::to_string(key) + "-" + std::to_string(i)), result);
+                feesDB->get(0, rocksdb::Slice(std::to_string(key) + "-" + std::to_string(i)), result);
                 i++;
                 if (result.storage().empty()) {
                     empty++;
                     continue;
                 }
+                CATAPULT_LOG(warning) << "LOADING: " << std::to_string(key) + "-" + std::to_string(i);
                 empty = 0;
                 values[0] = result.storage().ToString();
-                values[1] = values[0].substr(12, 50);
+                values[1] = values[0].substr(12, 12);
+                values[2] = values[0].substr(24, 50);
                 values[0] = values[0].substr(0, 12);
-                addEpochFeeEntry(blockHeight, stoul(values[0]), stoul(values[1]), values[2]);
+                addEpochFeeEntry(key, stoul(values[0]), stoul(values[1]), values[2], false);
                 result.storage().clear();
             }
             i = 0;
+            empty = 0;
             key++;
         }
     }
