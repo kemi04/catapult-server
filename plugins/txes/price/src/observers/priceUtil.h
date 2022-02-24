@@ -5,6 +5,7 @@
 #include <string>
 #include "src/catapult/cache_db/RocksDatabase.h"
 #include "src/catapult/cache_db/RocksInclude.h"
+#include <mutex>
 
 #ifdef __APPLE__
 #define NODESTROY [[clang::no_destroy]]
@@ -14,6 +15,8 @@
 
 namespace catapult {
 	namespace plugins {
+
+        extern std::mutex priceMutex;
 
         // block height, low price and high price
 		extern std::deque<std::tuple<uint64_t, uint64_t, uint64_t, double>> priceList;
@@ -69,7 +72,7 @@ namespace catapult {
         double approximate(double number);
         double getCoinGenerationMultiplier(uint64_t blockHeight, bool rollback = false);
         double getMultiplier(double increase30, double increase60, double increase90);
-        uint64_t getFeeToPay(uint64_t blockHeight, bool rollback = false, std::string beneficiary = "");
+        uint64_t getFeeToPay(uint64_t blockHeight, uint64_t *collectedFees, bool rollback = false, std::string beneficiary = "");
         void getAverage(uint64_t blockHeight, double &average30, double &average60, double &average90, 
             double &average120);
         double getMin(double num1, double num2, double num3 = -1);
@@ -105,7 +108,7 @@ namespace catapult {
 
         void removeOldEpochFeeEntries(uint64_t blockHeight);
         bool addEpochFeeEntry(uint64_t blockHeight, uint64_t collectedFees, uint64_t currentFee, std:: string address, bool addToFile = true);
-        void removeEpochFeeEntry(uint64_t blockHeight, uint64_t collectedFees, uint64_t blockFee, std::string address);
+        void removeEpochFeeEntry(uint64_t blockHeight, uint64_t blockFee, uint64_t collectedFees, std::string address);
         void addEpochFeeEntryToFile(uint64_t blockHeight, uint64_t supplyAmount, uint64_t blockFee, std::string address);
         void updateEpochFeeFile();
         std::string epochFeeToString();

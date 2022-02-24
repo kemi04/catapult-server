@@ -46,6 +46,7 @@ namespace catapult { namespace plugins {
     uint64_t pricePeriodBlocks = 0;
     uint64_t entryLifetime = 0;
     uint64_t generationCeiling = 0;
+    std::mutex priceMutex;
 
     const std::string supplyDirectory = "./data/supply";
     std::vector<std::string> supplyFields {"default"};
@@ -200,8 +201,7 @@ namespace catapult { namespace plugins {
         return 1;
     }
 
-    uint64_t getFeeToPay(uint64_t blockHeight, bool rollback, std::string beneficiary) {
-        uint64_t collectedEpochFees = 0;
+    uint64_t getFeeToPay(uint64_t blockHeight, uint64_t *collectedFees, bool rollback, std::string beneficiary) {
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t, std::string>>::reverse_iterator it;
         if (rollback) {
             if (epochFees.size() == 0) {
@@ -211,6 +211,7 @@ namespace catapult { namespace plugins {
             for (it = catapult::plugins::epochFees.rbegin(); it != catapult::plugins::epochFees.rend(); ++it) {         
                 if (std::get<0>(*it) == blockHeight && std::get<3>(*it) == beneficiary) {
                     feeToPay = std::get<2>(*it);
+                    *collectedFees = std::get<1>(*it);
                     break;
                 } else if (std::get<0>(*it) < blockHeight) {
                     feeToPay = 0;
@@ -226,15 +227,16 @@ namespace catapult { namespace plugins {
             }
             for (it = catapult::plugins::epochFees.rbegin(); it != catapult::plugins::epochFees.rend(); ++it) {
                 if (blockHeight - 1 == std::get<0>(*it)) {
-                    collectedEpochFees = std::get<1>(*it);
+                    *collectedFees = std::get<1>(*it);
                     break;
                 }
             }
-            feeToPay = static_cast<unsigned int>(static_cast<double>(collectedEpochFees) / static_cast<double>(feeRecalculationFrequency) + 0.5);
+            feeToPay = static_cast<unsigned int>(static_cast<double>(*collectedFees) / static_cast<double>(feeRecalculationFrequency) + 0.5);
         }
-        else if (feeToPay == 0 && blockHeight > feeRecalculationFrequency) {
+        else if (blockHeight > feeRecalculationFrequency) {
             for (it = catapult::plugins::epochFees.rbegin(); it != catapult::plugins::epochFees.rend(); ++it) {
                 if (blockHeight - 1 == std::get<0>(*it)) {
+                    *collectedFees = std::get<1>(*it);
                     feeToPay = std::get<2>(*it);
                     break;
                 }
@@ -253,11 +255,16 @@ namespace catapult { namespace plugins {
         if (priceList.size() == 0)
             return;
         int count = 0;
-        uint64_t boundary = pricePeriodBlocks;
+        uint64_t boundary = pricePeriodBlocks, prevBlock = -1;
         double *averagePtr = &average30;
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t, double>>::reverse_iterator it;
         // we also need to visit priceList.begin(), so we just break when we reach it
         for (it = priceList.rbegin(); it != priceList.rend(); ++it) {
+            if (std::get<0>(*it) == prevBlock) {
+                continue;
+            }
+            prevBlock = std::get<0>(*it);
+            
             if (std::get<0>(*it) < blockHeight + 1u - boundary && blockHeight + 1u >= boundary) {
                 if (averagePtr == &average30) {
                     averagePtr = &average60;
@@ -367,12 +374,6 @@ namespace catapult { namespace plugins {
 
         if (priceList.size() > 0) {
             previousTransactionHeight = std::get<0>(priceList.back());
-            if (previousTransactionHeight >= blockHeight) {
-                CATAPULT_LOG(warning) << "Warning: price transaction block height is lower or equal to the previous: " <<
-                    "Previous height: " << previousTransactionHeight << ", current height: " << blockHeight << "\n";
-                return false;
-            }
-
             if (previousTransactionHeight == blockHeight && std::get<1>(priceList.back()) == lowPrice &&
                 std::get<2>(priceList.back()) == highPrice && areSame(std::get<3>(priceList.back()), multiplier)) {
                 // data matches, so must be a duplicate, however, no need to resynchronise prices
@@ -380,9 +381,27 @@ namespace catapult { namespace plugins {
                     << "block height: " << blockHeight << ", lowPrice: " << lowPrice << ", highPrice: " << highPrice << "\n";
                 return true;
             }
+            
+            if (previousTransactionHeight >= blockHeight) {
+                CATAPULT_LOG(warning) << "Warning: price transaction block height is lower or equal to the previous: " <<
+                    "Previous height: " << previousTransactionHeight << ", current height: " << blockHeight << "\n";
+                auto it = catapult::plugins::priceList.rbegin();
+                for (it = catapult::plugins::priceList.rbegin(); it != catapult::plugins::priceList.rend(); ++it) {
+                    if (std::get<0>(*it) <= blockHeight) {
+                        break;
+                    }
+                }
+                catapult::plugins::priceList.insert(it.base(), {blockHeight, lowPrice, highPrice, multiplier});
+                if (addToFile)
+                    addPriceEntryToFile(blockHeight, lowPrice, highPrice, multiplier);
+                    
+                CATAPULT_LOG(info) << "New price added to the list for block " << blockHeight << " , lowPrice: "
+                    << lowPrice << ", highPrice: " << highPrice << ", multiplier: " << multiplier << "\n";
+                return true;
+            }
+
         }
         priceList.push_back({blockHeight, lowPrice, highPrice, multiplier});
-        CATAPULT_LOG(info) << "\n" << pricesToString() << "\n";
         if (addToFile)
             addPriceEntryToFile(blockHeight, lowPrice, highPrice, multiplier);
 
@@ -403,16 +422,16 @@ namespace catapult { namespace plugins {
                 
             if (std::get<0>(*it) == blockHeight && std::get<1>(*it) == lowPrice &&
                 std::get<2>(*it) == highPrice && areSame(std::get<3>(*it), multiplier)) {
-                it = decltype(it)(priceList.erase(std::next(it).base()));
                 CATAPULT_LOG(info) << "Price removed from the list for block " << blockHeight 
                     << ", lowPrice: " << lowPrice << ", highPrice: " << highPrice << ", multiplier: "
                     << multiplier << "\n";
+                priceList.erase(std::next(it).base());
                 break;
             }
         }
         priceDB->del(0, rocksdb::Slice(std::to_string(blockHeight)));
         priceDB->flush();
-        updatePricesFile();
+        //updatePricesFile();
     }
 
     void addPriceEntryToFile(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, double multiplier) {
@@ -491,7 +510,7 @@ namespace catapult { namespace plugins {
         if (key > blockHeight) {
             key = 0;
         }
-        while (key < blockHeight) {
+        while (key <= blockHeight) {
             priceDB->get(0, rocksdb::Slice(std::to_string(key)), result);
             if (result.storage().empty()) {
                 key++;
@@ -566,7 +585,6 @@ namespace catapult { namespace plugins {
             }
         }
         totalSupply.push_back({blockHeight, supplyAmount, increase});
-        CATAPULT_LOG(info) << "\n" << totalSupplyToString() << "\n";
         if (addToFile)
             addTotalSupplyEntryToFile(blockHeight, supplyAmount, increase);
 
@@ -586,15 +604,15 @@ namespace catapult { namespace plugins {
 
             if (std::get<0>(*it) == blockHeight && std::get<1>(*it) == supplyAmount &&
                 std::get<2>(*it) == increase) {
-                it = decltype(it)(totalSupply.erase(std::next(it).base()));
                 CATAPULT_LOG(info) << "Total supply entry removed from the list for block " << blockHeight 
                     << ", supplyAmount: " << supplyAmount << ", increase: " << increase << "\n";
+                totalSupply.erase(std::next(it).base());
                 break;
             }
         }
         supplyDB->del(0, rocksdb::Slice(std::to_string(blockHeight)));
         supplyDB->flush();
-        updateTotalSupplyFile(); // update data in the file
+        //updateTotalSupplyFile(); // update data in the file
     }
 
     void addTotalSupplyEntryToFile(uint64_t blockHeight, uint64_t supplyAmount, uint64_t increase) {
@@ -663,7 +681,7 @@ namespace catapult { namespace plugins {
         if (key > blockHeight) {
             key = 0;
         }
-        while (key < blockHeight) {
+        while (key <= blockHeight) {
             supplyDB->get(0, rocksdb::Slice(std::to_string(key)), result);
             if (result.storage().empty()) {
                 key++;
@@ -702,32 +720,29 @@ namespace catapult { namespace plugins {
         removeOldEpochFeeEntries(blockHeight);
 
         uint64_t previousEntryHeight;
-        std::vector<std::string> prevAddresses;
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t, std::string>>::reverse_iterator it;
 
         if (epochFees.size() > 0) {
             previousEntryHeight = std::get<0>(epochFees.back());
-            for (it = catapult::plugins::epochFees.rbegin(); it != catapult::plugins::epochFees.rend(); ++it) {         
-                if (std::get<0>(*it) == previousEntryHeight) {
-                    prevAddresses.push_back(std::get<3>(*it));
-                } else if (std::get<0>(*it) < previousEntryHeight) {
-                    break;
-                }
-			}
             if (previousEntryHeight > blockHeight) {
                 CATAPULT_LOG(warning) << "Warning: epoch fee entry block height is lower to the previous: " <<
                     "Previous height: " << previousEntryHeight << ", current height: " << blockHeight << "\n";
                 
                 for (it = catapult::plugins::epochFees.rbegin(); it != catapult::plugins::epochFees.rend(); ++it) {
                     if (std::get<0>(*it) <= blockHeight) {
-                        catapult::plugins::epochFees.insert(it.base(), {blockHeight, collectedFees, currentFee, address});
+                        break;
                     }
                 }
+                catapult::plugins::epochFees.insert(it.base(), {blockHeight, collectedFees, currentFee, address});
+                if (addToFile)
+                    addEpochFeeEntryToFile(blockHeight, collectedFees, currentFee, address);
+
+                CATAPULT_LOG(info) << "New epoch fee entry added to the list for block " << blockHeight
+                    << " , collectedFees: " << collectedFees << ", feeToPay: " << currentFee << ", address: " << address << "\n";
                 return true;
             }
         }
         epochFees.push_back({blockHeight, collectedFees, currentFee, address});
-        CATAPULT_LOG(info) << "\n" << epochFeeToString() << "\n";
         if (addToFile)
             addEpochFeeEntryToFile(blockHeight, collectedFees, currentFee, address);
 
@@ -736,7 +751,9 @@ namespace catapult { namespace plugins {
         return true;
     }
 
-    void removeEpochFeeEntry(uint64_t blockHeight, uint64_t collectedFees, uint64_t blockFee, std::string address) {
+    void removeEpochFeeEntry(uint64_t blockHeight, uint64_t blockFee, uint64_t collectedFees, std::string address) {
+        std::string values[EPOCH_FEES_DATA_SIZE - 1];
+        bool multipleEntries = false, removed = false;
         if (feesDB->columnFamilyNames().size() == 0) {
             feesDB.reset(new cache::RocksDatabase(feesSettings));
         }
@@ -745,38 +762,52 @@ namespace catapult { namespace plugins {
             if (blockHeight > std::get<0>(*it))
                 break;
 
-            if (std::get<0>(*it) == blockHeight && std::get<1>(*it) == collectedFees &&
-                std::get<2>(*it) == blockFee && std::get<3>(*it) == address) {
-                it = decltype(it)(epochFees.erase(std::next(it).base()));
-                CATAPULT_LOG(info) << "Epoch fee entry removed from the list for block " << blockHeight 
-                    << ", collectedFees: " << collectedFees << ", feeToPay: " << blockFee << ", address: " << address << "\n";
+            // Check if multiple epoch fee entries for the given block exist
+            if (!multipleEntries && blockHeight == std::get<0>(*it) && (it + 1) != epochFees.rend()) {
+                if (blockHeight == std::get<0>(*(it + 1))) {
+                    multipleEntries = true;
+                }
             }
+
+            if (std::get<0>(*it) == blockHeight && std::get<1>(*it) == collectedFees &&
+                std::get<2>(*it) == blockFee && std::get<3>(*it) == address && multipleEntries) {
+                CATAPULT_LOG(info) << "Epoch fee entry removed from the list for block " << blockHeight 
+                    << ", collectedFees: " << std::get<1>(*it) << ", feeToPay: " << blockFee << ", address: " << address << "\n";
+                epochFees.erase(std::next(it).base());
+                removed = true;
+                //break;
+            }
+        }
+        if (!removed) {
+            CATAPULT_LOG(info) << "Epoch fee NOT REMOVED for block " << blockHeight 
+                    << ", collectedFees: " << collectedFees << ", feeToPay: " << blockFee << ", address: " << address << "\n";
         }
         int i = -1, empty = 0;
         cache::RdbDataIterator result;
         do {
             i++;
+            result.storage().clear();
             feesDB->get(0, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), result);
             if (result.storage().empty()) {
                 empty++;
                 if (empty > 5) {
                     break;
                 }
+                continue;
             } else {
                 empty = 0;
             }
-            if (result.storage().ToString() == std::to_string(collectedFees)) {
-                feesDB->get(1, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), result);
-                if (result.storage().ToString() == std::to_string(blockFee)) {
-                    feesDB->get(2, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), result);
-                    if (result.storage().ToString() == address) {
-                        feesDB->del(0, rocksdb::Slice(std::to_string(blockHeight)));
-                    }
-                }
+            values[0] = result.storage().ToString();
+            values[1] = values[0].substr(12, 12);
+            values[2] = values[0].substr(24, 50);
+            values[2].erase(std::remove_if(values[2].begin(), values[2].end(), isspace), values[2].end());
+            if (stoul(values[1]) == blockFee && values[2] == address) {
+                feesDB->del(0, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)));
+                //break;
             }
         } while (!result.storage().empty());
         feesDB->flush();
-        updateEpochFeeFile(); // update data in the file
+        //updateEpochFeeFile(); // update data in the file
     }
 
     void addEpochFeeEntryToFile(uint64_t blockHeight, uint64_t collectedFees, uint64_t blockFee, std::string address) {
@@ -813,7 +844,6 @@ namespace catapult { namespace plugins {
         for (int k = 1; k < EPOCH_FEES_DATA_SIZE - 1; k++) {
             epochFeesData[0] += epochFeesData[k];
         }
-        CATAPULT_LOG(warning) << "PUTTING: " << std::to_string(blockHeight) + "-" + std::to_string(i);
         feesDB->put(0, rocksdb::Slice(std::to_string(blockHeight) + "-" + std::to_string(i)), epochFeesData[0]);
         feesDB->flush();
     }
@@ -865,7 +895,7 @@ namespace catapult { namespace plugins {
             key = 0;
         }
         int empty = 0, i = 0;
-        while (key < blockHeight) {
+        while (key <= blockHeight) {
             while (empty < 5) {
                 feesDB->get(0, rocksdb::Slice(std::to_string(key) + "-" + std::to_string(i)), result);
                 i++;
@@ -873,11 +903,12 @@ namespace catapult { namespace plugins {
                     empty++;
                     continue;
                 }
-                CATAPULT_LOG(warning) << "LOADING: " << std::to_string(key) + "-" + std::to_string(i);
+                CATAPULT_LOG(warning) << "LOADING: " << std::to_string(key) + "-" + std::to_string(i - 1);
                 empty = 0;
                 values[0] = result.storage().ToString();
                 values[1] = values[0].substr(12, 12);
                 values[2] = values[0].substr(24, 50);
+                values[2].erase(std::remove_if(values[2].begin(), values[2].end(), isspace), values[2].end());
                 values[0] = values[0].substr(0, 12);
                 addEpochFeeEntry(key, stoul(values[0]), stoul(values[1]), values[2], false);
                 result.storage().clear();

@@ -920,7 +920,7 @@ namespace catapult { namespace plugins {
             uint64_t collectedFees = std::get<1>(mockEpochFees[MOCK_EPOCH_FEE_ENTRIES - 3]);
             uint64_t blockFee = std::get<2>(mockEpochFees[MOCK_EPOCH_FEE_ENTRIES - 3]);
             generateEpochFees();
-            removeEpochFeeEntry(blockHeight, collectedFees, blockFee, "address");
+            removeEpochFeeEntry(blockHeight, blockFee, "address");
             EXPECT_EQ(epochFees.size(), remainingPricesExpected);
 	    }
 
@@ -933,7 +933,7 @@ namespace catapult { namespace plugins {
             uint64_t blockHeight = 751;
             uint64_t collectedFees = 696;
             uint64_t blockFee = 69;
-            removeEpochFeeEntry(blockHeight, collectedFees, blockFee, "address");
+            removeEpochFeeEntry(blockHeight, blockFee, "address");
             EXPECT_EQ(epochFees.size(), remainingPricesExpected);
 	    }
         

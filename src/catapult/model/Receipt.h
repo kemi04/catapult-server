@@ -99,6 +99,20 @@ namespace catapult { namespace model {
 
 	// endregion
 
+	/*struct FeeReceipt : public Receipt {
+	public:
+		/// Creates a receipt around \a receiptType, \a mosaicId and \a amount.
+		FeeReceipt(ReceiptType receiptType, catapult::MosaicId mosaicId, catapult::Amount amount) : Mosaic({ mosaicId, amount }) {
+			Size = sizeof(FeeReceipt);
+			Version = 1;
+			Type = receiptType;
+		}
+
+	public:
+		/// Mosaic.
+		model::Mosaic Mosaic;
+	};*/
+
 	// region InflationReceipt
 
 	/// Binary layout for an inflation receipt.

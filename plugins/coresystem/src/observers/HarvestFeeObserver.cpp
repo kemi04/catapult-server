@@ -82,6 +82,8 @@ namespace catapult { namespace observers {
 	DECLARE_OBSERVER(HarvestFee, Notification)(const HarvestFeeOptions& options, const model::InflationCalculator& calculator) {
 		return MAKE_OBSERVER(HarvestFee, Notification, ([options, calculator](const Notification& notification, ObserverContext& context) {
 			
+			catapult::plugins::priceMutex.lock();
+
 			if (catapult::plugins::totalSupply.size() == 0) {
 				// if there are no records, load them from the files
 				catapult::plugins::readConfig();
@@ -104,7 +106,7 @@ namespace catapult { namespace observers {
 
 			if (NotifyMode::Commit == context.Mode) {
 				multiplier = catapult::plugins::getCoinGenerationMultiplier(context.Height.unwrap());
-				feeToPay = catapult::plugins::getFeeToPay(context.Height.unwrap());
+				feeToPay = catapult::plugins::getFeeToPay(context.Height.unwrap(), &collectedEpochFees);
 				if (catapult::plugins::epochFees.size() > 0) {
 					for (itFees = catapult::plugins::epochFees.rbegin(); itFees != catapult::plugins::epochFees.rend(); ++itFees) {
 						if (context.Height.unwrap() > std::get<0>(*itFees)) {
@@ -132,7 +134,7 @@ namespace catapult { namespace observers {
 				} else {
 					CATAPULT_LOG(warning) << "Warning: total supply list is empty\n";
 				}
-				inflation = static_cast<uint64_t>(static_cast<double>(totalSupply) * multiplier / 52560000 + 0.5);
+				inflation = static_cast<uint64_t>(static_cast<double>(totalSupply) * multiplier / 210240000 /* 365 * 24 * 60 * 2 * 100 * 2 */ + 0.5);
 				if (totalSupply + inflation > catapult::plugins::generationCeiling) {
 					inflation = catapult::plugins::generationCeiling - totalSupply;
 				}
@@ -146,25 +148,13 @@ namespace catapult { namespace observers {
 
 			} else if (NotifyMode::Rollback == context.Mode) {
 				multiplier = catapult::plugins::getCoinGenerationMultiplier(context.Height.unwrap(), true);
-				feeToPay = catapult::plugins::getFeeToPay(context.Height.unwrap(), true, model::AddressToString(notification.Beneficiary));
-				if (catapult::plugins::epochFees.size() > 0) {
-					for (itFees = catapult::plugins::epochFees.rbegin(); itFees != catapult::plugins::epochFees.rend(); ++itFees) {         
-						if (std::get<0>(*itFees) == context.Height.unwrap() && std::get<2>(*itFees) == feeToPay
-								&& std::get<3>(*itFees) == model::AddressToString(notification.Beneficiary)) {
-							collectedEpochFees = std::get<1>(*itFees);
-							break;
-						}
-						if (context.Height.unwrap() > std::get<0>(*itFees)) {
-							CATAPULT_LOG(error) << "Error: epoch fee entry for block " << context.Height.unwrap()
-								<< " with beneficiary: " << model::AddressToString(notification.Beneficiary)
-								<< ", with feeToPay: " << feeToPay << " can't be found\n";
-							break;
-						}
-					}
-				} else {
+				feeToPay = catapult::plugins::getFeeToPay(context.Height.unwrap(), &collectedEpochFees, true, model::AddressToString(notification.Beneficiary));
+				if (catapult::plugins::epochFees.size() == 0) {
 					CATAPULT_LOG(error) << "Error: epoch fees list is empty, rollback mode\n";
 				}
-				catapult::plugins::removeEpochFeeEntry(context.Height.unwrap(), collectedEpochFees, feeToPay, model::AddressToString(notification.Beneficiary));
+				CATAPULT_LOG(error) << "REMOVING EPOCH FEE ENTRY: block: " << context.Height.unwrap()
+					<< ", feeToPay: " << feeToPay << ", collected fees: " << collectedEpochFees;
+				catapult::plugins::removeEpochFeeEntry(context.Height.unwrap(), feeToPay, collectedEpochFees, model::AddressToString(notification.Beneficiary));
 				if (catapult::plugins::totalSupply.size() > 0) {
 					for (itTotal = catapult::plugins::totalSupply.rbegin(); itTotal != catapult::plugins::totalSupply.rend(); ++itTotal) {         
 						if (std::get<0>(*itTotal) == context.Height.unwrap()) {
@@ -183,7 +173,7 @@ namespace catapult { namespace observers {
 				} else {
 					CATAPULT_LOG(error) << "Error: total supply list is empty, rollback mode\n";
 				}
-				inflation = static_cast<uint64_t>(static_cast<double>(totalSupply) * multiplier / 52560000 + 0.5);
+				inflation = static_cast<uint64_t>(static_cast<double>(totalSupply) * multiplier / 210240000 /* 365 * 24 * 60 * 2 * 100 * 2 */ + 0.5);
 				if (totalSupply + inflation > catapult::plugins::generationCeiling) {
 					inflation = catapult::plugins::generationCeiling - totalSupply;
 				}
@@ -191,6 +181,7 @@ namespace catapult { namespace observers {
 				inflationAmount = Amount(inflation);
 				totalAmount = Amount(inflation + feeToPay);
 			}
+			catapult::plugins::priceMutex.unlock();
 
 			if (context.Height.unwrap() == 1) {
 				totalAmount = Amount(0);
@@ -202,11 +193,19 @@ namespace catapult { namespace observers {
 					: Amount();
 			auto harvesterAmount = totalAmount - networkAmount - beneficiaryAmount;
 
+			CATAPULT_LOG(error) << "";
+			CATAPULT_LOG(error) << "Block: " << context.Height.unwrap();
 			CATAPULT_LOG(error) << "Commit: " << (NotifyMode::Commit == context.Mode);
-			CATAPULT_LOG(error) << "Beneficiary: " << notification.Beneficiary;
-			CATAPULT_LOG(error) << "Amount: " << beneficiaryAmount;
-			CATAPULT_LOG(error) << "Harvester: " << notification.Harvester;
-			CATAPULT_LOG(error) << "Amount: " << harvesterAmount;
+			CATAPULT_LOG(error) << "Beneficiary: " << model::AddressToString(notification.Beneficiary);
+			CATAPULT_LOG(error) << "Amount: " << beneficiaryAmount.unwrap();
+			CATAPULT_LOG(error) << "Harvester: " << model::AddressToString(notification.Harvester);
+			CATAPULT_LOG(error) << "Amount: " << harvesterAmount.unwrap();
+			CATAPULT_LOG(error) << "Fee To Pay: " << feeToPay;
+			CATAPULT_LOG(error) << "Collected Fees: " << collectedEpochFees;
+			CATAPULT_LOG(error) << "Inflation: " << inflation;
+			CATAPULT_LOG(error) << "Total fees: " << notification.TotalFee.unwrap();
+			CATAPULT_LOG(error) << "Block: " << context.Height.unwrap();
+			CATAPULT_LOG(error) << "";
 
 			// always create receipt for harvester
 			FeeApplier applier(options.CurrencyMosaicId, context);
@@ -219,6 +218,11 @@ namespace catapult { namespace observers {
 			// only if amount is non-zero create receipt for beneficiary account
 			if (Amount() != beneficiaryAmount)
 				applier.apply(notification.Beneficiary, beneficiaryAmount);
+				
+			/*if (NotifyMode::Commit == context.Mode) {
+				model::FeeReceipt feeReceipt(model::FeeReceipt(model::Receipt_Type_CollectedFees, options.CurrencyMosaicId, catapult::Amount(collectedEpochFees)));
+				context.StatementBuilder().addReceipt(feeReceipt);
+			}*/
 
 			// add inflation receipt
 			if (Amount() != inflationAmount && NotifyMode::Commit == context.Mode) {
