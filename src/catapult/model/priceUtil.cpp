@@ -22,7 +22,7 @@ typedef int errno_t;
 #endif
 
 static bool areSame(double a, double b) {
-    return std::fabs(a - b) < std::numeric_limits<double>::epsilon();
+    return abs(a - b) < std::numeric_limits<double>::epsilon();
 }
 
 namespace catapult { namespace plugins {
@@ -129,11 +129,12 @@ namespace catapult { namespace plugins {
     }
 
     double getCoinGenerationMultiplier(uint64_t blockHeight, bool rollback) {
-        if (blockHeight % multiplierRecalculationFrequency > 0 && !areSame(currentMultiplier, 0) != 0 && !rollback) // recalculate only every 720 blocks
+        if (blockHeight % multiplierRecalculationFrequency > 0 && !areSame(currentMultiplier, 0) && !rollback) {
             return currentMultiplier;
-        else if (areSame(currentMultiplier, 0))
+        }
+        else if (areSame(currentMultiplier, 0)) {
             currentMultiplier = 1;
-
+        }
         if (rollback) {
             std::deque<std::tuple<uint64_t, uint64_t, uint64_t, double>>::reverse_iterator it;
             for (it = priceList.rbegin(); it != priceList.rend(); ++it) {

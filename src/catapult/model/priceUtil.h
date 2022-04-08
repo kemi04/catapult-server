@@ -3,8 +3,8 @@
 #include "stdint.h"
 #include "catapult/types.h"
 #include <string>
-#include "src/catapult/cache_db/RocksDatabase.h"
-#include "src/catapult/cache_db/RocksInclude.h"
+#include "catapult/cache_db/RocksDatabase.h"
+#include "catapult/cache_db/RocksInclude.h"
 #include <mutex>
 
 #ifdef __APPLE__

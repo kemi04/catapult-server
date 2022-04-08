@@ -23,7 +23,7 @@
 #include "catapult/config/CatapultDataDirectory.h"
 #include "catapult/io/FileQueue.h"
 #include "catapult/io/PodIoUtils.h"
-#include "priceUtil.h"
+#include "catapult/model/priceUtil.h"
 #include "src/catapult/model/NetworkIdentifier.h"
 #include "src/catapult/model/Address.h"
 
