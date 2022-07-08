@@ -123,11 +123,6 @@ namespace catapult { namespace observers {
 			// only if amount is non-zero create receipt for beneficiary account
 			if (Amount() != beneficiaryAmount)
 				applier.apply(notification.Beneficiary, beneficiaryAmount);
-				
-			/*if (NotifyMode::Commit == context.Mode) {
-				model::FeeReceipt feeReceipt(model::FeeReceipt(model::Receipt_Type_CollectedFees, options.CurrencyMosaicId, catapult::Amount(collectedEpochFees)));
-				context.StatementBuilder().addReceipt(feeReceipt);
-			}*/
 
 			// add inflation receipt
 			if (Amount() != inflationAmount && NotifyMode::Commit == context.Mode) {
