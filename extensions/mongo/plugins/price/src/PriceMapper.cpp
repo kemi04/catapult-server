@@ -32,9 +32,9 @@ namespace catapult { namespace mongo { namespace plugins {
 		template<typename TTransaction>
 		void StreamTransaction(bson_stream::document& builder, const TTransaction& transaction) {
 			builder
-					<< "Block height" << transaction.blockHeight
-					<< "Low price" << transaction.lowPrice
-					<< "High price" << transaction.highPrice;
+					<< "Block height" << int64_t(transaction.blockHeight)
+					<< "Low price" << int64_t(transaction.lowPrice)
+					<< "High price" << int64_t(transaction.highPrice);
 		}
 	}
 
