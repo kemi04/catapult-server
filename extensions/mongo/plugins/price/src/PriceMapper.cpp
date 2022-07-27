@@ -22,7 +22,7 @@
 #include "PriceMapper.h"
 #include "mongo/src/MongoTransactionPluginFactory.h"
 #include "mongo/src/mappers/MapperUtils.h"
-#include "plugins/txes/price/src/model/priceTransaction.h"
+#include "plugins/txes/price/src/model/PriceTransaction.h"
 
 using namespace catapult::mongo::mappers;
 

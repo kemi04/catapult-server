@@ -249,14 +249,13 @@ namespace catapult { namespace plugins {
         uint64_t boundary = pricePeriodBlocks, prevBlock = -1;
         double *averagePtr = &average30;
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t, double>>::reverse_iterator it;
-        // we also need to visit priceList.begin(), so we just break when we reach it
         for (it = priceList.rbegin(); it != priceList.rend(); ++it) {
-            if (std::get<0>(*it) == prevBlock) {
+            if (std::get<0>(*it) >= blockHeight || std::get<0>(*it) == prevBlock) {
                 continue;
             }
             prevBlock = std::get<0>(*it);
             
-            if (std::get<0>(*it) < blockHeight + 1u - boundary && blockHeight + 1u >= boundary) {
+            if (std::get<0>(*it) <= blockHeight - 1u - boundary && blockHeight > boundary) {
                 if (averagePtr == &average30) {
                     averagePtr = &average60;
                     if (count > 0)
@@ -274,23 +273,20 @@ namespace catapult { namespace plugins {
                 }
                 count = 0;
                 boundary += pricePeriodBlocks;
-                if (blockHeight + 1u < boundary) // not enough blocks for the next 30 days
+                if (blockHeight - 1u < boundary) // not enough blocks for the next 30 days
                     break;
-            } else if (std::get<0>(*it) > blockHeight) {
-                // ignore price messages into the future
-                continue;
             }
             *averagePtr += static_cast<double>(std::get<1>(*it) + std::get<2>(*it));
             ++count;
         }
-        if (count > 0 && blockHeight + 1u >= boundary) {
+        if (count > 0 && blockHeight - 1 >= boundary) {
             *averagePtr = *averagePtr / count / 2;
             approximate(*averagePtr);
         }
         else
             *averagePtr = 0;
 
-        CATAPULT_LOG(info) << "New averages found for block height " << blockHeight
+        CATAPULT_LOG(error) << "New averages found for block height " << blockHeight
             <<": 30 day average : " << average30 << ", 60 day average: " << average60
             << ", 90 day average: " << average90 << ", 120 day average: " << average120 << "\n";
     }
@@ -299,7 +295,7 @@ namespace catapult { namespace plugins {
         if (areSame(num3, -1)) {
             return num1 >= num2 ? num2 : num1;
         }
-        return num1 >= num2 ? (num3 >= num2 ? num2 : num3) : num1; 
+        return num1 >= num2 ? (num3 >= num2 ? num2 : num3) : num1 >= num3 ? num3 : num1;
     }
 
     void processPriceTransaction(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, bool rollback) {
@@ -386,7 +382,7 @@ namespace catapult { namespace plugins {
                 if (addToFile)
                     addPriceEntryToFile(blockHeight, lowPrice, highPrice, multiplier);
                     
-                CATAPULT_LOG(info) << "New price added to the list for block " << blockHeight << " , lowPrice: "
+                CATAPULT_LOG(error) << "New price added to the list for block " << blockHeight << " , lowPrice: "
                     << lowPrice << ", highPrice: " << highPrice << ", multiplier: " << multiplier << "\n";
                 return true;
             }
@@ -396,7 +392,7 @@ namespace catapult { namespace plugins {
         if (addToFile)
             addPriceEntryToFile(blockHeight, lowPrice, highPrice, multiplier);
 
-        CATAPULT_LOG(info) << "New price added to the list for block " << blockHeight << " , lowPrice: "
+        CATAPULT_LOG(error) << "New price added to the list for block " << blockHeight << " , lowPrice: "
             << lowPrice << ", highPrice: " << highPrice << ", multiplier: " << multiplier << "\n";
         return true;
     }
@@ -413,7 +409,7 @@ namespace catapult { namespace plugins {
                 
             if (std::get<0>(*it) == blockHeight && std::get<1>(*it) == lowPrice &&
                 std::get<2>(*it) == highPrice && areSame(std::get<3>(*it), multiplier)) {
-                CATAPULT_LOG(info) << "Price removed from the list for block " << blockHeight 
+                CATAPULT_LOG(error) << "Price removed from the list for block " << blockHeight 
                     << ", lowPrice: " << lowPrice << ", highPrice: " << highPrice << ", multiplier: "
                     << multiplier << "\n";
                 priceList.erase(std::next(it).base());
