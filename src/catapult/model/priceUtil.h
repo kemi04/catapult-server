@@ -38,6 +38,8 @@ namespace catapult {
         // total supply and epoch fee entry life timein terms of blocks
         extern uint64_t entryLifetime;
 
+        extern std::deque<std::tuple<uint64_t, uint64_t, uint64_t, double>> priceList;
+
         // max number of coins
         extern uint64_t generationCeiling;
         extern const std::string priceDirectory;

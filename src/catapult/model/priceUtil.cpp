@@ -325,7 +325,7 @@ namespace catapult { namespace plugins {
 			return;
 		}
 		catapult::plugins::addPrice(blockHeight, lowPrice, highPrice, multiplier);
-        getCoinGenerationMultiplier(blockHeight, true);
+        getCoinGenerationMultiplier(blockHeight + 1, true);
     }
     
     //endregion block_reward

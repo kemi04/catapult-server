@@ -169,8 +169,9 @@ namespace catapult { namespace model {
 			catapult::plugins::priceMutex.lock();
 			if (catapult::plugins::initialSupply == 0) {
 				catapult::plugins::readConfig();
-				catapult::plugins::loadPricesFromFile(context.BlockHeight.unwrap());
 			}
+			catapult::plugins::priceList.clear();
+			catapult::plugins::loadPricesFromFile(context.BlockHeight.unwrap());
 
 			if (context.BlockHeight.unwrap() == 1) {
 				pBlock->totalSupply = catapult::plugins::initialSupply;
