@@ -51,7 +51,7 @@ namespace catapult { namespace plugins {
     const std::string priceDirectory = "./data/price";
     std::vector<std::string> priceFields {"default"};
     cache::RocksDatabaseSettings priceSettings(priceDirectory, priceFields, cache::FilterPruningMode::Disabled);
-    std::unique_ptr<cache::RocksDatabase> priceDB = std::make_unique<cache::RocksDatabase>();
+    std::unique_ptr<cache::RocksDatabase> priceDB;
 
     //region block_reward
 
@@ -406,9 +406,7 @@ namespace catapult { namespace plugins {
     }
 
     void removePrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, double multiplier) {
-        if (priceDB->columnFamilyNames().size() == 0) {
-            priceDB.reset(new cache::RocksDatabase(priceSettings));
-        }
+        priceDB.reset(new cache::RocksDatabase(priceSettings));
 
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t, double>>::reverse_iterator it;
         for (it = priceList.rbegin(); it != priceList.rend(); ++it) {
@@ -426,12 +424,11 @@ namespace catapult { namespace plugins {
         }
         priceDB->del(0, rocksdb::Slice(std::to_string(blockHeight)));
         priceDB->flush();
+        priceDB.reset();
     }
 
     void addPriceEntryToFile(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, double multiplier) {
-        if (priceDB->columnFamilyNames().size() == 0) {
-            priceDB.reset(new cache::RocksDatabase(priceSettings));
-        }
+        priceDB.reset(new cache::RocksDatabase(priceSettings));
 
         std::string priceData[PRICE_DATA_SIZE - 1] = {
             std::to_string(lowPrice),
@@ -456,6 +453,7 @@ namespace catapult { namespace plugins {
 
         priceDB->put(0, rocksdb::Slice(std::to_string(blockHeight)), priceData[0]);
         priceDB->flush();
+        priceDB.reset();
     }
 
     void updatePricesFile() {
@@ -495,11 +493,9 @@ namespace catapult { namespace plugins {
         if (blockHeight <= 1) {
             return;
         }
-        if (priceDB->columnFamilyNames().size() == 0) {
-            priceDB.reset(new cache::RocksDatabase(priceSettings));
-        }
+        priceDB.reset(new cache::RocksDatabase(priceSettings));
         cache::RdbDataIterator result;
-        std::string values[PRICE_DATA_SIZE - 1];
+        std::string values[PRICE_DATA_SIZE - 1] = {""};
         uint64_t key = blockHeight - 345599u - entryLifetime;
         if (key > blockHeight) {
             key = 0;
@@ -520,7 +516,12 @@ namespace catapult { namespace plugins {
             result.storage().clear();
             key++;
         }
-        currentMultiplier = std::stod(values[2]);
+        if (values[2] == "") {
+            currentMultiplier = 1;
+        } else {
+            currentMultiplier = std::stod(values[2]);
+        }
+        priceDB.reset();
     }
 
     //endregion price_helper
