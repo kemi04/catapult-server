@@ -45,7 +45,6 @@ namespace catapult {
         extern const std::string priceDirectory;
         extern std::vector<std::string> priceFields;
         extern cache::RocksDatabaseSettings priceSettings;
-        extern std::unique_ptr<cache::RocksDatabase> priceDB;
 
         //region block_reward
         void configToFile();
