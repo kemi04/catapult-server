@@ -97,7 +97,7 @@ namespace catapult { namespace observers {
 					: Amount();
 			auto harvesterAmount = totalAmount - networkAmount - beneficiaryAmount;
 
-			CATAPULT_LOG(error) << "BLOCK INFORMATION:";
+			CATAPULT_LOG(error) << "BLOCK INFORMATION";
 			CATAPULT_LOG(error) << "Block: " << context.Height.unwrap();
 			CATAPULT_LOG(error) << "Commit: " << (NotifyMode::Commit == context.Mode);
 			CATAPULT_LOG(error) << "Beneficiary: " << model::AddressToString(notification.Beneficiary);
