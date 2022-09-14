@@ -34,6 +34,7 @@ namespace catapult { namespace plugins {
     const std::string priceDirectory = "./data/price";
     std::vector<std::string> priceFields {"default"};
     cache::RocksDatabaseSettings priceSettings(priceDirectory, priceFields, cache::FilterPruningMode::Disabled);
+    
     //region block_reward
     
     bool areSame(double a, double b) {
