@@ -96,7 +96,7 @@ namespace catapult { namespace mongo { namespace mappers {
 				<< "feeToPay" << static_cast<int64_t>(block.feeToPay)
 				<< "inflation" << static_cast<int64_t>(block.inflation)
 				<< "collectedEpochFees" << static_cast<int64_t>(block.collectedEpochFees)
-				<< "inflationMultiplier" << static_cast<int64_t>(block.inflationMultiplier);
+				<< "inflationMultiplier" << static_cast<int64_t>(block.inflationMultiplier * 100000);
 
 		if (model::IsImportanceBlock(block.Type)) {
 			const auto& blockFooter = model::GetBlockFooter<model::ImportanceBlockFooter>(block);
