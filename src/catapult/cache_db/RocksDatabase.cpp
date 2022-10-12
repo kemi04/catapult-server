@@ -27,6 +27,8 @@
 #include "catapult/utils/PathUtils.h"
 #include "catapult/utils/StackLogger.h"
 #include "catapult/exceptions.h"
+#include <chrono>
+#include <thread>
 
 namespace catapult { namespace cache {
 
@@ -147,10 +149,11 @@ namespace catapult { namespace cache {
 
 	RocksDatabase::RocksDatabase() = default;
 
-	RocksDatabase::RocksDatabase(const RocksDatabaseSettings& settings)
+	RocksDatabase::RocksDatabase(const RocksDatabaseSettings& settings, bool retryLock)
 			: m_settings(settings)
 			, m_pruningFilter(m_settings.PruningMode)
 			, m_pWriteBatch(std::make_unique<rocksdb::WriteBatch>()) {
+		int lockAttempts = 0;
 		if (m_settings.ColumnFamilyNames.empty())
 			CATAPULT_THROW_INVALID_ARGUMENT("missing column family names");
 
@@ -165,8 +168,15 @@ namespace catapult { namespace cache {
 		auto dbOptions = CreateDatabaseOptions(m_settings.DatabaseConfig);
 		auto status = rocksdb::DB::Open(dbOptions, m_settings.DatabaseDirectory, columnFamilies, &m_handles, &pDb);
 		m_pDb.reset(pDb);
-		if (!status.ok())
-			CATAPULT_THROW_RUNTIME_ERROR_2("couldn't open database", m_settings.DatabaseDirectory, status.ToString());
+		while (!status.ok()) {
+			if (lockAttempts > 25 || !retryLock)
+				CATAPULT_THROW_RUNTIME_ERROR_2("couldn't open database", m_settings.DatabaseDirectory, status.ToString());
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			lockAttempts++;
+			status = rocksdb::DB::Open(dbOptions, m_settings.DatabaseDirectory, columnFamilies, &m_handles, &pDb);
+			m_pDb.reset(pDb);
+		}
 	}
 
 	RocksDatabase::~RocksDatabase() {

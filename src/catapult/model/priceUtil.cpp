@@ -315,7 +315,7 @@ namespace catapult { namespace plugins {
     }
 
     void removePrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice) {
-        cache::RocksDatabase priceDB(priceSettings);
+        cache::RocksDatabase priceDB(priceSettings, true);
 
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t>>::reverse_iterator it;
         for (it = priceList.rbegin(); it != priceList.rend(); ++it) {
@@ -335,7 +335,7 @@ namespace catapult { namespace plugins {
     }
 
     void addPriceEntryToFile(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice) {
-        cache::RocksDatabase priceDB(priceSettings);
+        cache::RocksDatabase priceDB(priceSettings, true);
 
         std::string priceData[PRICE_DATA_SIZE - 1] = {
             std::to_string(lowPrice),
@@ -365,7 +365,7 @@ namespace catapult { namespace plugins {
         if (blockHeight <= 1) {
             return;
         }
-        cache::RocksDatabase priceDB(priceSettings);
+        cache::RocksDatabase priceDB(priceSettings, true);
         cache::RdbDataIterator result;
         std::string values[PRICE_DATA_SIZE - 1] = {""};
         uint64_t key = blockHeight - 345599u - entryLifetime;
