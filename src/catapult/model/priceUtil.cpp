@@ -122,38 +122,38 @@ namespace catapult { namespace plugins {
             if (increase90 >= 1.25) {
                 min = getMin(increase30, increase60, increase90);
                 if (min >= 1.55)
-                    return approximate(getExponentialBase(1 + 0.735, static_cast<double>(pricePeriodsPerYear)));
+                    return approximate(73.5 / static_cast<double>(pricePeriodsPerYear));
                 else if (min >= 1.45)
-                    return approximate(getExponentialBase(1 + (0.67 + (min - 1.45) * 0.65), static_cast<double>(pricePeriodsPerYear)));
+                    return approximate((67 + (min - 1.45) * 6.5) / static_cast<double>(pricePeriodsPerYear));
                 else if (min >= 1.35)
-                    return approximate(getExponentialBase(1 + (0.61 + (min - 1.35) * 0.6), static_cast<double>(pricePeriodsPerYear)));
+                    return approximate((61 + (min - 1.35) * 6) / static_cast<double>(pricePeriodsPerYear));
                 else if (min >= 1.25)
-                    return approximate(getExponentialBase(1 + (0.55 + (min - 1.25) * 0.6), static_cast<double>(pricePeriodsPerYear)));
+                    return approximate((55 + (min - 1.25) * 6) / static_cast<double>(pricePeriodsPerYear));
             } else {
                 min = getMin(increase30, increase60);
                 if (min >= 1.55)
-                    return approximate(getExponentialBase(1 + 0.49, static_cast<double>(pricePeriodsPerYear)));
+                    return approximate(49 / static_cast<double>(pricePeriodsPerYear));
                 else if (min >= 1.45)
-                    return approximate(getExponentialBase(1 + (0.43 + (min - 1.45) * 0.6), static_cast<double>(pricePeriodsPerYear)));
+                    return approximate((43 + (min - 1.45) * 6) / static_cast<double>(pricePeriodsPerYear));
                 else if (min >= 1.35)
-                    return approximate(getExponentialBase(1 + (0.37 + (min - 1.35) * 0.6), static_cast<double>(pricePeriodsPerYear)));
+                    return approximate((37 + (min - 1.35) * 6) / static_cast<double>(pricePeriodsPerYear));
                 else if (min >= 1.25)
-                    return approximate(getExponentialBase(1 + (0.31 + (min - 1.25) * 0.6), static_cast<double>(pricePeriodsPerYear)));
+                    return approximate((31 + (min - 1.25) * 6) / static_cast<double>(pricePeriodsPerYear));
             }
         } else if (increase30 >= 1.05) {
             min = increase30;
             if (min >= 1.55)
-                return approximate(getExponentialBase(1 + 0.25, static_cast<double>(pricePeriodsPerYear)));
+                return approximate(25 / static_cast<double>(pricePeriodsPerYear));
             else if (min >= 1.45)
-                return approximate(getExponentialBase(1 + (0.19 + (min - 1.45) * 0.6), static_cast<double>(pricePeriodsPerYear)));
+                return approximate((19 + (min - 1.45) * 6) / static_cast<double>(pricePeriodsPerYear));
             else if (min >= 1.35)
-                return approximate(getExponentialBase(1 + (0.13 + (min - 1.35) * 0.6), static_cast<double>(pricePeriodsPerYear)));
+                return approximate((13 + (min - 1.35) * 6) / static_cast<double>(pricePeriodsPerYear));
             else if (min >= 1.25)
-                return approximate(getExponentialBase(1 + (0.095 + (min - 1.25) * 0.35), static_cast<double>(pricePeriodsPerYear)));
+                return approximate((95 + (min - 1.25) * 3.5) / static_cast<double>(pricePeriodsPerYear));
             else if (min >= 1.15)
-                return approximate(getExponentialBase(1 + (0.06 + (min - 1.15) * 0.35), static_cast<double>(pricePeriodsPerYear)));
+                return approximate((6 + (min - 1.15) * 3.5) / static_cast<double>(pricePeriodsPerYear));
             else if (min >= 1.05)
-                return approximate(getExponentialBase(1 + (0.025 + (min - 1.05) * 0.35), static_cast<double>(pricePeriodsPerYear)));
+                return approximate((2.5 + (min - 1.05) * 3.5) / static_cast<double>(pricePeriodsPerYear));
         }
         return 0;
     }

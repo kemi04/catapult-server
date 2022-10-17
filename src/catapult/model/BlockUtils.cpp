@@ -164,6 +164,7 @@ namespace catapult { namespace model {
 			auto* pDestination = reinterpret_cast<uint8_t*>(pBlock->TransactionsPtr());
 			CopyTransactions(pDestination, transactions);
 			uint64_t inflation;
+			double increase;
 			
 			if (catapult::plugins::initialSupply == 0) {
 				catapult::plugins::readConfig();
@@ -171,7 +172,7 @@ namespace catapult { namespace model {
 
 			if (context.BlockHeight.unwrap() == 1) {
 				pBlock->totalSupply = catapult::plugins::initialSupply;
-				pBlock->inflationMultiplier = 1;
+				pBlock->inflationMultiplier = 0;
 			} else {
 				pBlock->totalSupply = context.totalSupply;
 				pBlock->inflationMultiplier = context.inflationMultiplier;
@@ -180,14 +181,17 @@ namespace catapult { namespace model {
 				CATAPULT_LOG(error) << "BLOCK HEIGHT (RECALCULATION): " << context.BlockHeight.unwrap() + 1;
 				catapult::plugins::priceList.clear();
 				catapult::plugins::loadPricesFromFile(context.BlockHeight.unwrap());
-				pBlock->inflationMultiplier = pBlock->inflationMultiplier * catapult::plugins::getCoinGenerationMultiplier(context.BlockHeight.unwrap() + 1);
-				if (catapult::plugins::areSame(pBlock->inflationMultiplier, 0)) {
-					pBlock->inflationMultiplier = 1;
+				increase = catapult::plugins::getCoinGenerationMultiplier(context.BlockHeight.unwrap() + 1);
+				pBlock->inflationMultiplier = pBlock->inflationMultiplier + increase;
+				if (catapult::plugins::areSame(increase, 0)) {
+					pBlock->inflationMultiplier = 0;
 					CATAPULT_LOG(error) << "RESET: " << context.BlockHeight.unwrap() + 1;
+				} else if (pBlock->inflationMultiplier > 94) {
+					pBlock->inflationMultiplier = 94;
 				}
 				CATAPULT_LOG(error) << "MULTIPLIER BLOCK UTILS: " << pBlock->inflationMultiplier;
 			}
-			inflation = static_cast<uint64_t>(static_cast<double>(pBlock->totalSupply) * pBlock->inflationMultiplier / 52560000 /* 365 * 24 * 60 * 2 * 100 / 2 */ + 0.5);
+			inflation = static_cast<uint64_t>(static_cast<double>(pBlock->totalSupply) / 105120000 /* 365 * 24 * 60 * 2 * 100 */ * (2 + pBlock->inflationMultiplier) + 0.5);
 			if (context.totalSupply + inflation > catapult::plugins::generationCeiling) {
 				inflation = catapult::plugins::generationCeiling - context.totalSupply;
 			}
