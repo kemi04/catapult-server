@@ -37,6 +37,7 @@ namespace catapult {
         extern uint64_t entryLifetime;
 
         extern std::deque<std::tuple<uint64_t, uint64_t, uint64_t>> priceList;
+        extern std::deque<std::tuple<uint64_t, uint64_t, uint64_t>> tempPriceList;
 
         // max number of coins
         extern uint64_t generationCeiling;
@@ -60,11 +61,12 @@ namespace catapult {
         //region price_helper
 
         void removeOldPrices(uint64_t blockHeight);
-        bool addPrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, bool addToFile = true);
+        bool addPrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, bool addToFile = true, bool tempPrice = false);
         void removePrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice);
         void addPriceEntryToFile(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice);        
-        void updatePricesFile();
+        void updatePricesFile(bool tempPrice = false);
         void loadPricesFromFile(uint64_t blockHeight);
+        void loadTempPricesFromFile(uint64_t fromHeight, uint64_t toHeight);
         void processPriceTransaction(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, bool rollback = false);
 
         //endregion price_helper

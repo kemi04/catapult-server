@@ -169,7 +169,7 @@ namespace catapult { namespace cache {
 		auto status = rocksdb::DB::Open(dbOptions, m_settings.DatabaseDirectory, columnFamilies, &m_handles, &pDb);
 		m_pDb.reset(pDb);
 		while (!status.ok()) {
-			if (lockAttempts > 25 || !retryLock)
+			if (lockAttempts > 100 || !retryLock)
 				CATAPULT_THROW_RUNTIME_ERROR_2("couldn't open database", m_settings.DatabaseDirectory, status.ToString());
 
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));

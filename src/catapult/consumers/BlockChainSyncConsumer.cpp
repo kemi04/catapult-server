@@ -164,21 +164,28 @@ namespace catapult { namespace consumers {
 			ConsumerResult sync(BlockElements& elements, InputSource source) const {
 				// 1. preprocess the peer and local chains and extract the sync state
 				SyncState syncState;
-				auto intermediateResult = preprocess(elements, source, syncState);
-				if (IsAborted(intermediateResult))
+				bool backup = false;
+				auto intermediateResult = preprocess(elements, source, syncState, backup);
+				if (IsAborted(intermediateResult)) {
+					if (backup) {
+						catapult::plugins::updatePricesFile(true);
+					}
 					return intermediateResult;
+				}
 
 				// 2. validate and execute the peer chain
 				intermediateResult = process(elements, syncState);
-				if (IsAborted(intermediateResult))
+				if (IsAborted(intermediateResult)) {
+					catapult::plugins::updatePricesFile(true);
 					return intermediateResult;
+				}
 
 				// 3. commit all changes
 				commitAll(elements, syncState);
 				return Continue();
 			}
 
-			ConsumerResult preprocess(const BlockElements& elements, InputSource source, SyncState& syncState) const {
+			ConsumerResult preprocess(const BlockElements& elements, InputSource source, SyncState& syncState, bool& backup) const {
 				// 0. retrieve finalized height hash pairs (this needs to happen before taking storage lock because
 				//    LocalFinalizedHeightHashPairSupplier takes a storage lock)
 				auto localFinalizedHeightHashPair = m_handlers.LocalFinalizedHeightHashPairSupplier();
@@ -209,6 +216,12 @@ namespace catapult { namespace consumers {
 				syncState = SyncState(m_cache, localFinalizedHeight, storageView.loadBlock(localFinalizedHeight)->Timestamp);
 				auto commonBlockHeight = peerStartHeight - Height(1);
 				auto observerState = syncState.observerState();
+
+				CATAPULT_LOG(error) << "Loading prices to temp storage";
+				backup = true;
+				catapult::plugins::tempPriceList.clear();
+				catapult::plugins::loadTempPricesFromFile(commonBlockHeight.unwrap() + 1, localChainHeight.unwrap());
+
 				auto unwindResult = unwindLocalChain(localChainHeight, commonBlockHeight, storageView, observerState);
 				const auto& localScore = unwindResult.Score;
 

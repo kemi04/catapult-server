@@ -22,6 +22,7 @@ typedef int errno_t;
 namespace catapult { namespace plugins {
 
     NODESTROY std::deque<std::tuple<uint64_t, uint64_t, uint64_t>> priceList;
+    NODESTROY std::deque<std::tuple<uint64_t, uint64_t, uint64_t>> tempPriceList;
 
     uint64_t initialSupply = 0;
     std::string pricePublisherPublicKey = "";
@@ -250,7 +251,7 @@ namespace catapult { namespace plugins {
             return;
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t>>::iterator it;
         for (it = priceList.begin(); it != priceList.end(); ++it) {
-            if (std::get<0>(*it) < blockHeight - 345599u - entryLifetime) { // older than 120 days + some entryLifetime blocks
+            if (std::get<0>(*it) < blockHeight - 4 * pricePeriodBlocks - entryLifetime) { // older than 120 days + some entryLifetime blocks
                 priceList.erase(it);
             }
             else
@@ -261,7 +262,7 @@ namespace catapult { namespace plugins {
         }
     }
 
-    bool addPrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, bool addToFile) {
+    bool addPrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, bool addToFile, bool tempPrice) {
         removeOldPrices(blockHeight);
         // must be non-zero
         if (!lowPrice || !highPrice) {
@@ -275,6 +276,12 @@ namespace catapult { namespace plugins {
             return false;
         }
         uint64_t previousTransactionHeight;
+
+        if (tempPrice) {
+            auto itTemp = catapult::plugins::tempPriceList.rbegin();
+            tempPriceList.insert(itTemp.base(), {blockHeight, lowPrice, highPrice});
+            return true;
+        }
 
         if (priceList.size() > 0) {
             previousTransactionHeight = std::get<0>(priceList.back());
@@ -354,10 +361,41 @@ namespace catapult { namespace plugins {
         priceDB.flush();
     }
 
-    void updatePricesFile() {
+    void updatePricesFile(bool tempPrice) {
         std::deque<std::tuple<uint64_t, uint64_t, uint64_t>>::iterator it;
+        if (tempPrice) {
+            CATAPULT_LOG(error) << "Restoring temp prices";
+            for (it = tempPriceList.begin(); it != tempPriceList.end(); ++it) {
+                CATAPULT_LOG(error) << std::get<0>(*it) << ", " << std::get<1>(*it) << ", " << std::get<2>(*it);
+                addPriceEntryToFile(std::get<0>(*it), std::get<1>(*it), std::get<2>(*it));
+            }
+            return;
+        }
         for (it = priceList.begin(); it != priceList.end(); ++it) {
             addPriceEntryToFile(std::get<0>(*it), std::get<1>(*it), std::get<2>(*it));
+        }
+    }
+
+    void loadTempPricesFromFile(uint64_t fromHeight, uint64_t toHeight) {
+        cache::RocksDatabase priceDB(priceSettings, true);
+        cache::RdbDataIterator result;
+        std::string values[PRICE_DATA_SIZE - 1] = {""};
+        uint64_t key = fromHeight;
+        CATAPULT_LOG(error) << "Temp prices";
+        while (key <= toHeight) {
+            priceDB.get(0, rocksdb::Slice(std::to_string(key)), result);
+            if (result.storage().empty()) {
+                key++;
+                continue;
+            }
+            values[0] = result.storage().ToString();
+            CATAPULT_LOG(error) << values[0];
+            values[1] = values[0].substr(20, 20);
+            values[0] = values[0].substr(0, 20);
+
+            addPrice(key, std::stoul(values[0]), std::stoul(values[1]), false, true);
+            result.storage().clear();
+            key++;
         }
     }
 
@@ -368,7 +406,7 @@ namespace catapult { namespace plugins {
         cache::RocksDatabase priceDB(priceSettings, true);
         cache::RdbDataIterator result;
         std::string values[PRICE_DATA_SIZE - 1] = {""};
-        uint64_t key = blockHeight - 345599u - entryLifetime;
+        uint64_t key = blockHeight - 4 * pricePeriodBlocks - entryLifetime;
         if (key > blockHeight) {
             key = 0;
         }
