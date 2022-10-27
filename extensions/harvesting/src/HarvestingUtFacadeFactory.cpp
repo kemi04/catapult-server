@@ -25,8 +25,8 @@
 #include "catapult/cache_core/AccountStateCache.h"
 #include "catapult/chain/ProcessContextsBuilder.h"
 #include "catapult/chain/ProcessingNotificationSubscriber.h"
-#include "catapult/model/BlockChainConfiguration.h"
 #include "catapult/model/BlockUtils.h"
+#include "catapult/model/BlockchainConfiguration.h"
 #include "catapult/model/FeeUtils.h"
 #include "catapult/model/VotingSet.h"
 #include "catapult/model/priceUtil.h"
@@ -112,11 +112,11 @@ namespace catapult { namespace harvesting {
 		Impl(
 				Timestamp blockTime,
 				const cache::CatapultCache& cache,
-				const model::BlockChainConfiguration& blockChainConfig,
+				const model::BlockchainConfiguration& blockchainConfig,
 				const chain::ExecutionConfiguration& executionConfig,
 				const ImportanceBlockHashSupplier& importanceBlockHashSupplier)
 				: m_blockTime(blockTime)
-				, m_blockChainConfig(blockChainConfig)
+				, m_blockchainConfig(blockchainConfig)
 				, m_executionConfig(executionConfig)
 				, m_importanceBlockHashSupplier(importanceBlockHashSupplier)
 				, m_pCacheFacade(std::make_unique<CacheFacade>(cache))
@@ -165,7 +165,7 @@ namespace catapult { namespace harvesting {
 
 			// 1. stitch block
 			auto pBlock = model::StitchBlock(blockHeader, transactions);
-			auto importanceHeight = model::ConvertToImportanceHeight(pBlock->Height, m_blockChainConfig.ImportanceGrouping);
+			auto importanceHeight = model::ConvertToImportanceHeight(pBlock->Height, m_blockchainConfig.ImportanceGrouping);
 
 			// 2. add back fee surpluses to accounts (skip cache lookup if no surplus)
 			auto& accountStateCacheDelta = m_pCacheFacade->delta().sub<cache::AccountStateCache>();
@@ -173,7 +173,7 @@ namespace catapult { namespace harvesting {
 				auto surplus = transaction.MaxFee - model::CalculateTransactionFee(blockHeader.FeeMultiplier, transaction);
 				if (Amount(0) != surplus) {
 					auto accountStateIter = accountStateCacheDelta.find(transaction.SignerPublicKey);
-					state::ApplyFeeSurplus(accountStateIter.get(), { m_blockChainConfig.CurrencyMosaicId, surplus }, importanceHeight);
+					state::ApplyFeeSurplus(accountStateIter.get(), { m_blockchainConfig.CurrencyMosaicId, surplus }, importanceHeight);
 				}
 			}
 
@@ -201,9 +201,9 @@ namespace catapult { namespace harvesting {
 			if (model::IsImportanceBlock(pBlock->Type)) {
 				accountStateCacheDelta.updateHighValueAccounts(pBlock->Height);
 
-				auto epoch = pBlock->Height < m_blockChainConfig.ForkHeights.TotalVotingBalanceCalculationFix
+				auto epoch = pBlock->Height < m_blockchainConfig.ForkHeights.TotalVotingBalanceCalculationFix
 						? FinalizationEpoch(0)
-						: model::CalculateFinalizationEpochForHeight(pBlock->Height, m_blockChainConfig.VotingSetGrouping);
+						: model::CalculateFinalizationEpochForHeight(pBlock->Height, m_blockchainConfig.VotingSetGrouping);
 
 				auto statistics = cache::ReadOnlyAccountStateCache(accountStateCacheDelta).highValueAccountStatistics(epoch);
 				auto& blockFooter = model::GetBlockFooter<model::ImportanceBlockFooter>(*pBlock);
@@ -213,11 +213,11 @@ namespace catapult { namespace harvesting {
 			}
 
 			// 6. update block fields
-			pBlock->StateHash = m_blockChainConfig.EnableVerifiableState
+			pBlock->StateHash = m_blockchainConfig.EnableVerifiableState
 					? m_pCacheFacade->delta().calculateStateHash(height()).StateHash
 					: Hash256();
 
-			pBlock->ReceiptsHash = m_blockChainConfig.EnableVerifiableReceipts
+			pBlock->ReceiptsHash = m_blockchainConfig.EnableVerifiableReceipts
 					? model::CalculateMerkleHash(*m_blockStatementBuilder.build())
 					: Hash256();
 
@@ -225,7 +225,7 @@ namespace catapult { namespace harvesting {
 			m_pCacheFacade.reset();
 			if (model::IsImportanceBlock(pBlock->Type)) {
 				// assume block has height that is multiple of importance grouping
-				model::HeightGroupingFacade<Height> groupingFacade(pBlock->Height, m_blockChainConfig.ImportanceGrouping);
+				model::HeightGroupingFacade<Height> groupingFacade(pBlock->Height, m_blockchainConfig.ImportanceGrouping);
 
 				auto& blockFooter = model::GetBlockFooter<model::ImportanceBlockFooter>(*pBlock);
 				blockFooter.PreviousImportanceBlockHash = m_importanceBlockHashSupplier(groupingFacade.previous(1));
@@ -251,7 +251,7 @@ namespace catapult { namespace harvesting {
 			// prepare state and contexts
 			chain::ProcessContextsBuilder contextBuilder(height(), m_blockTime, m_executionConfig);
 			contextBuilder.setCache(m_pCacheFacade->delta());
-			if (m_blockChainConfig.EnableVerifiableReceipts)
+			if (m_blockchainConfig.EnableVerifiableReceipts)
 				contextBuilder.setBlockStatementBuilder(m_blockStatementBuilder);
 
 			auto validatorContext = contextBuilder.buildValidatorContext();
@@ -307,7 +307,7 @@ namespace catapult { namespace harvesting {
 
 	private:
 		Timestamp m_blockTime;
-		model::BlockChainConfiguration m_blockChainConfig;
+		model::BlockchainConfiguration m_blockchainConfig;
 		chain::ExecutionConfiguration m_executionConfig;
 		ImportanceBlockHashSupplier m_importanceBlockHashSupplier;
 
@@ -325,10 +325,10 @@ namespace catapult { namespace harvesting {
 	HarvestingUtFacade::HarvestingUtFacade(
 			Timestamp blockTime,
 			const cache::CatapultCache& cache,
-			const model::BlockChainConfiguration& blockChainConfig,
+			const model::BlockchainConfiguration& blockchainConfig,
 			const chain::ExecutionConfiguration& executionConfig,
 			const ImportanceBlockHashSupplier& importanceBlockHashSupplier)
-			: m_pImpl(std::make_unique<Impl>(blockTime, cache, blockChainConfig, executionConfig, importanceBlockHashSupplier))
+			: m_pImpl(std::make_unique<Impl>(blockTime, cache, blockchainConfig, executionConfig, importanceBlockHashSupplier))
 	{}
 
 	HarvestingUtFacade::~HarvestingUtFacade() = default;
@@ -380,11 +380,11 @@ namespace catapult { namespace harvesting {
 
 	HarvestingUtFacadeFactory::HarvestingUtFacadeFactory(
 			const cache::CatapultCache& cache,
-			const model::BlockChainConfiguration& blockChainConfig,
+			const model::BlockchainConfiguration& blockchainConfig,
 			const chain::ExecutionConfiguration& executionConfig,
 			const ImportanceBlockHashSupplier& importanceBlockHashSupplier)
 			: m_cache(cache)
-			, m_blockChainConfig(blockChainConfig)
+			, m_blockchainConfig(blockchainConfig)
 			, m_executionConfig(executionConfig)
 			, m_importanceBlockHashSupplier(importanceBlockHashSupplier)
 	{}
@@ -393,7 +393,7 @@ namespace catapult { namespace harvesting {
 		return std::make_unique<HarvestingUtFacade>(
 				blockTime,
 				m_cache,
-				m_blockChainConfig,
+				m_blockchainConfig,
 				m_executionConfig,
 				m_importanceBlockHashSupplier);
 	}

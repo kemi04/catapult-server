@@ -11,7 +11,7 @@ target_link_libraries(catapult.tools.nemgen
 	catapult.tools.plugins
 	catapult.finalization
 	catapult.plugins.coresystem
-	catapult.model
 	catapult.plugins.mosaic
 	catapult.plugins.namespace
-	catapult.plugins.transfer)
+	catapult.plugins.transfer
+	catapult.model)

@@ -76,8 +76,6 @@ namespace catapult { namespace model {
 	/// Harvest fee credit.
 	DEFINE_RECEIPT_TYPE(BalanceCredit, Core, Harvest_Fee, 1);
 
-	// DEFINE_RECEIPT_TYPE(Other, Core, CollectedFees, 1);
-
 	/// Inflation.
 	DEFINE_RECEIPT_TYPE(Inflation, Core, Inflation, 1);
 

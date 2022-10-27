@@ -66,7 +66,7 @@ namespace catapult { namespace model {
 
 		/// Transfer facility code.
 		Transfer = 0x54,
-		
+
 		/// Price facility code.
 		Price = 0x56
 	};

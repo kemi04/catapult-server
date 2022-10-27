@@ -30,7 +30,7 @@ endfunction()
 
 ### setup boost
 message("--- locating boost dependencies ---")
-find_package(Boost 1.76.0 EXACT COMPONENTS ${CATAPULT_BOOST_COMPONENTS} REQUIRED)
+find_package(Boost 1.80.0 EXACT COMPONENTS ${CATAPULT_BOOST_COMPONENTS} REQUIRED)
 include_directories(SYSTEM ${Boost_INCLUDE_DIR})
 
 message("boost     ver: ${Boost_VERSION}")
@@ -41,7 +41,9 @@ message("boost    libs: ${Boost_LIBRARIES}")
 if(ENABLE_TESTS)
 	message("--- locating gtest dependencies ---")
 
-	find_package(GTest 1.10.0 EXACT REQUIRED)
+	find_package(GTest 1.12.1 EXACT REQUIRED)
+	message("GTest   found: ${GTest_FOUND}")
+	message("GTest     inc: ${GTEST_INCLUDE_DIRS}")
 	message("GTest     ver: ${GTest_VERSION}")
 	message("GTest    libs: ${GTEST_LIBRARIES}")
 endif()
@@ -63,7 +65,7 @@ endfunction()
 
 ### setup rocksdb
 message("--- locating rocksdb dependencies ---")
-find_package(RocksDB 6.20.3 EXACT REQUIRED)
+find_package(RocksDB 7.4.3 EXACT REQUIRED)
 
 if(WIN32)
 	set(RocksDB_LIBRARY RocksDB::rocksdb)

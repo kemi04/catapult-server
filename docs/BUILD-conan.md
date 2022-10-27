@@ -6,10 +6,11 @@ Following instructions should work on Mac, Linux (Ubuntu 20.04) and Windows.
 
 * **On Linux**:
 
-  1. Install the compiler:
+  1. Install the compiler and build dependencies:
 
      ```sh
-     sudo apt install build-essential git cmake ninja-build
+     sudo apt update
+     sudo apt install build-essential git cmake ninja-build pkg-config
      ```
 
   2. Install [Conan](https://conan.io/downloads.html).
@@ -18,8 +19,18 @@ Following instructions should work on Mac, Linux (Ubuntu 20.04) and Windows.
 
      ```sh
      conan profile new default --detect
-     conan profile update settings.compiler.libcxx=libstdc++11 default
+     conan config set general.revisions_enabled=True
      ```
+     
+    For gcc compiler:
+    ```sh
+    conan profile update settings.compiler.libcxx=libstdc++11 default
+    ```
+
+    For clang compiler:
+    ```sh
+    conan profile update settings.compiler.libcxx=libc++ default
+    ```
 
 * **On Windows**:
 
@@ -64,8 +75,8 @@ as this will probably take *a bit*.
 ```sh
 conan remote add nemtech https://catapult.jfrog.io/artifactory/api/conan/symbol-conan
 
-git clone https://github.com/symbol/catapult-client.git
-cd catapult-client
+git clone https://github.com/symbol/symbol.git
+cd symbol/client/catapult
 
 mkdir _build && cd _build
 CONAN_REVISIONS_ENABLED=1 conan install .. --build missing
@@ -78,23 +89,23 @@ CONAN_REVISIONS_ENABLED=1 conan install .. --build missing
 > **NOTE:**
 > Make sure to use the correct ``PYTHON_EXECUTABLE`` path! Python3 is required for the build to produce some header files. If Python3 cannot be found you won't notice until more than one hour into the build process because of some missing headers. You can find your Python3 path by running ``where python3``.
 
+* Generate project files for Visual Studio 2022:
+
+  ```sh
+  cmake -G "Visual Studio 17 2022" -A x64 -DUSE_CONAN=ON -DPYTHON_EXECUTABLE:FILEPATH=X:/python3x/python.exe ..
+  ```
+
 * Generate project files for Visual Studio 2019:
 
   ```sh
-  cmake -G "Visual Studio 16 2019" -A x64 -DUSE_CONAN=ON -DPYTHON_EXECUTABLE:FILEPATH=X:/python3x/python.exe ..
-  ```
-
-* Generate project files for Visual Studio 2017:
-
-  ```sh
-  cmake -G "Visual Studio 15 2017 Win64" -DUSE_CONAN=ON -DPYTHON_EXECUTABLE:FILEPATH=X:/python3x/python.exe ..
+  cmake -G "Visual Studio 16 2019"  -A x64 -DUSE_CONAN=ON -DPYTHON_EXECUTABLE:FILEPATH=X:/python3x/python.exe ..
   ```
 
 * Build:
 
   ```sh
   cmake --build . --target publish
-  msbuild /p:Configuration=RelWithDebInfo /p:Platform=x64 ALL_BUILD.vcxproj
+  msbuild /p:Configuration=RelWithDebInfo /p:Platform=x64 /m ALL_BUILD.vcxproj
   ```
 
   After building successfully, the tools in ``_build\bin`` are ready to use. All runtime dependencies have been copied into the same folder so Windows will find them.
