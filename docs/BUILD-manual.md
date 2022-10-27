@@ -8,7 +8,7 @@ For Windows, [Build with CONAN](BUILD-conan.md) is strongly encouraged.
 
 - ``git``.
 - ``python`` 3.7+.
-- ``openssl`` 1.1.1g+.
+- ``openssl`` 1.1.1n+.
 - About 15 GB of free disk space.
 
 These instructions have been verified to work on Ubuntu 20.04 with 8 GB of RAM and 4 CPU cores.
@@ -17,7 +17,7 @@ On an Ubuntu system, all prerequisites can be installed with the following comma
 ```sh
 apt update
 apt -y upgrade
-apt -y install git gcc g++ cmake curl libssl-dev ninja-build pkg-config python3-pip
+apt -y install git gcc g++ cmake curl libssl-dev libgtest-dev ninja-build pkg-config python3-pip
 ```
 
 ## Step 1: Clone catapult-client
@@ -25,8 +25,8 @@ apt -y install git gcc g++ cmake curl libssl-dev ninja-build pkg-config python3-
 As usual, clone the git repository:
 
 ```sh
-git clone https://github.com/symbol/catapult-client.git
-cd catapult-client
+git clone https://github.com/symbol/symbol.git
+cd symbol/client/catapult
 ```
 
 ## Step 2: Download, build and install all dependencies from source
@@ -37,9 +37,9 @@ Type this into a terminal:
 > If you want to build with clang, add the `--use-clang` flag.
 
 ```sh
-PYTHONPATH="./scripts/build" python3 "./scripts/build/installDepsLocal.py" \
+PYTHONPATH="../../jenkins/catapult/" python3 "../../jenkins/catapult/installDepsLocal.py" \
 	--target "./_deps" \
-	--versions "./scripts/build/versions.properties" \
+	--versions "../../jenkins/catapult/versions.properties" \
 	--download \
 	--build
 ```
@@ -61,9 +61,19 @@ ninja publish
 ninja
 ```
 
+Once the build finishes successfully, the tools in ``_build/bin`` are ready to use. However, the dependencies in ``_deps/boost/lib`` and ``_build/lib`` must be accessible so make sure to add these folders to the ``LD_LIBRARY_PATH`` environment variable.
+
+One way of doing this is by running this from the ``symbol/client/catapult`` directory:
+
+  ```sh
+  export LD_LIBRARY_PATH=$PWD/_deps/boost/lib:$PWD/_build/lib
+  ```
+
+You will need to run this line every new session, unless you add it at the end of your ``~/.bashrc`` or ``~/.profile`` files.
+
 ## Step 4: Verification
 
-Verify that the tools are working correctly by running:
+Verify that the tools are working correctly by running (from ``_build`` directory):
 
 ```sh
 ./bin/catapult.tools.address --help

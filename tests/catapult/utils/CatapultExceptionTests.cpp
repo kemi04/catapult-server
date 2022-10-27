@@ -39,6 +39,7 @@ namespace catapult {
 		std::vector<std::string> GetLocationIndependentDiagnosticInformation(const boost::exception& ex) {
 			// Arrange: remove file path and line number
 			auto info = boost::diagnostic_information(ex);
+			CATAPULT_LOG(info) << "exception diag: " << info;
 			info = info.substr(info.find(':', 2) + 2);
 
 			// - split the info by line
@@ -77,12 +78,48 @@ namespace catapult {
 #define PTRSUFFIX "*"
 #endif
 
+		// Boost function name got updated and now return in the form below.  This function coverts the function name to the
+		// expected value in the exception.
+		// Only gcc includes the traits information in the exception function name.
+		// void catapult::CatapultExceptionTests_CanCopyConstructException() [with TTraits = catapult::{anonymous}::RuntimeErrorTraits]
+		std::string ConvertToExceptionFunctionName(const std::string& functionFullName) {
+			CATAPULT_LOG(info) << "function: " << functionFullName;
+
+			std::size_t functionNameEnd = functionFullName.find_first_of("<(");
+			if (std::string::npos == functionNameEnd)
+				return functionFullName;
+
+			auto functionNameStart = functionFullName.rfind("::", functionNameEnd);
+			functionNameStart = (std::string::npos != functionNameStart) ? functionNameStart + 2 : 0;
+			std::ostringstream oss(functionFullName.substr(functionNameStart, functionNameEnd - functionNameStart), std::ios_base::ate);
+
+#if defined(__GNUC__) && !defined(__clang__)
+			auto foundTraits = functionFullName.find("=", functionNameEnd);
+			if (std::string::npos != foundTraits) {
+				auto traitsEnd = functionFullName.find("]", foundTraits);
+				auto functionTraits = functionFullName.substr(foundTraits + 2, traitsEnd - foundTraits - 2);
+				oss << "<";
+
+// Bug in boost where the trait information is missing the "catapult" namespace.
+// Boost function returns this - [with TTraits = {anonymous}::RuntimeErrorTraits]
+// For gcc 12 add the namespace manually
+#if (12 == __GNUC__)
+				oss << "catapult::";
+#endif
+
+				oss << functionTraits << ">";
+			}
+#endif
+
+			return oss.str();
+		}
+
 		template<typename TException, typename TTraits>
 		void AssertExceptionInformation(const TException& ex, const ExpectedDiagnostics<TTraits>& expected) {
 			// Arrange:
 			std::vector<std::string> expectedDiagLines{
-				"Throw in function " + expected.FunctionName,
-				"Dynamic exception type: " CLASSPREFIX "boost::wrapexcept<" + std::string(TTraits::Exception_Fqn) + " >",
+				"Throw in function " + ConvertToExceptionFunctionName(expected.FunctionName),
+				"Dynamic exception type: " STRUCTPREFIX "boost::wrapexcept<" + std::string(TTraits::Exception_Fqn) + " >",
 				"std::exception::what: " + expected.What
 			};
 

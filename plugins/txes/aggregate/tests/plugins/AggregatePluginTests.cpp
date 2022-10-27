@@ -34,7 +34,7 @@ namespace catapult { namespace plugins {
 			template<typename TAction>
 			static void RunTestAfterRegistration(TAction action) {
 				// Arrange:
-				auto config = model::BlockChainConfiguration::Uninitialized();
+				auto config = model::BlockchainConfiguration::Uninitialized();
 				config.Plugins.emplace("catapult.plugins.aggregate", utils::ConfigurationBag({{
 					"",
 					{
@@ -54,6 +54,10 @@ namespace catapult { namespace plugins {
 				// Act:
 				action(manager);
 			}
+
+			static std::vector<std::string> GetStatefulValidatorNames() {
+				return { "AggregateTransactionVersionValidator" };
+			}
 		};
 
 		// notice that the transaction types and stateless validators are config-dependent
@@ -65,7 +69,7 @@ namespace catapult { namespace plugins {
 			}
 
 			static std::vector<std::string> GetStatelessValidatorNames() {
-				return { "BasicAggregateCosignaturesValidator" };
+				return { "AggregateTransactionsHashValidator", "BasicAggregateCosignaturesValidator" };
 			}
 		};
 
@@ -76,7 +80,11 @@ namespace catapult { namespace plugins {
 			}
 
 			static std::vector<std::string> GetStatelessValidatorNames() {
-				return { "BasicAggregateCosignaturesValidator", "StrictAggregateCosignaturesValidator" };
+				return {
+					"AggregateTransactionsHashValidator",
+					"BasicAggregateCosignaturesValidator",
+					"StrictAggregateCosignaturesValidator"
+				};
 			}
 		};
 
@@ -87,7 +95,7 @@ namespace catapult { namespace plugins {
 			}
 
 			static std::vector<std::string> GetStatelessValidatorNames() {
-				return { "BasicAggregateCosignaturesValidator" };
+				return { "AggregateTransactionsHashValidator", "BasicAggregateCosignaturesValidator" };
 			}
 		};
 	}

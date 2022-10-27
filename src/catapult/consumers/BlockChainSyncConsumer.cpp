@@ -146,7 +146,7 @@ namespace catapult { namespace consumers {
 					uint64_t importanceGrouping,
 					cache::CatapultCache& cache,
 					io::BlockStorageCache& storage,
-					const BlockChainSyncHandlers& handlers)
+					const BlockchainSyncHandlers& handlers)
 					: m_importanceGrouping(importanceGrouping)
 					, m_cache(cache)
 					, m_storage(storage)
@@ -380,7 +380,7 @@ namespace catapult { namespace consumers {
 			uint64_t m_importanceGrouping;
 			cache::CatapultCache& m_cache;
 			io::BlockStorageCache& m_storage;
-			BlockChainSyncHandlers m_handlers;
+			BlockchainSyncHandlers m_handlers;
 		};
 	}
 
@@ -388,7 +388,7 @@ namespace catapult { namespace consumers {
 			uint64_t importanceGrouping,
 			cache::CatapultCache& cache,
 			io::BlockStorageCache& storage,
-			const BlockChainSyncHandlers& handlers) {
+			const BlockchainSyncHandlers& handlers) {
 		return BlockChainSyncConsumer(importanceGrouping, cache, storage, handlers);
 	}
 }}
