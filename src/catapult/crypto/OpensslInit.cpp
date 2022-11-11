@@ -19,8 +19,28 @@
 *** along with Catapult. If not, see <http://www.gnu.org/licenses/>.
 **/
 
-#pragma once
-#define CATAPULT_VERSION_MAJOR 1
-#define CATAPULT_VERSION_MINOR 0
-#define CATAPULT_VERSION_REVISION 3
-#define CATAPULT_VERSION_BUILD 5
+#include "OpensslInit.h"
+#include "catapult/exceptions.h"
+#include <openssl/provider.h>
+
+namespace catapult { namespace crypto {
+
+	namespace {
+		struct OpensslContext {
+			std::shared_ptr<OSSL_PROVIDER> pDefaultProvider;
+			std::shared_ptr<OSSL_PROVIDER> pLegacyProvider;
+		};
+	}
+
+	std::shared_ptr<void> SetupOpensslCryptoFunctions() {
+		auto pContext = std::make_shared<OpensslContext>();
+
+		pContext->pDefaultProvider.reset(OSSL_PROVIDER_load(nullptr, "default"), OSSL_PROVIDER_unload);
+		pContext->pLegacyProvider.reset(OSSL_PROVIDER_load(nullptr, "legacy"), OSSL_PROVIDER_unload);
+
+		if (!pContext->pDefaultProvider || !pContext->pLegacyProvider)
+			CATAPULT_THROW_RUNTIME_ERROR("unable to load required OpenSSL crypto providers");
+
+		return pContext;
+	}
+}}

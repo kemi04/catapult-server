@@ -20,7 +20,10 @@
 **/
 
 #pragma once
-#define CATAPULT_VERSION_MAJOR 1
-#define CATAPULT_VERSION_MINOR 0
-#define CATAPULT_VERSION_REVISION 3
-#define CATAPULT_VERSION_BUILD 5
+#include <memory>
+
+namespace catapult { namespace crypto {
+
+	/// Configures the openssl crypto functions and returns an openssl global context.
+	std::shared_ptr<void> SetupOpensslCryptoFunctions();
+}}
