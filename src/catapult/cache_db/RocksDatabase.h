@@ -137,7 +137,7 @@ namespace catapult { namespace cache {
 		RocksDatabase();
 
 		/// Creates database around \a settings.
-		explicit RocksDatabase(const RocksDatabaseSettings& settings, bool retry = false);
+		explicit RocksDatabase(const RocksDatabaseSettings& settings, bool retry = false, bool readOnly = false);
 
 		/// Destroys database.
 		~RocksDatabase();

@@ -87,6 +87,18 @@ namespace catapult { namespace observers {
 			Amount inflationAmount = Amount(inflation);
 			Amount totalAmount = Amount(inflation + feeToPay);
 
+			if (catapult::plugins::generationCeiling == 0) {
+				catapult::plugins::readConfig();
+			}
+			catapult::plugins::priceList.clear();
+			catapult::plugins::loadPricesFromFile(context.Height.unwrap());
+			double average30, average60, average90, average120;
+			catapult::plugins::getAverage(context.Height.unwrap(), average30, average60, average90, average120);
+			double increase30 = average30 / average60;
+			double increase60 = catapult::plugins::areSame(average90, 0) ? 0 : average60 / average90;
+			double increase90 = catapult::plugins::areSame(average120, 0) ? 0 : average90 / average120;
+			double multiplier = catapult::plugins::getMultiplier(increase30, increase60, increase90);
+
 			if (context.Height.unwrap() == 1) {
 				totalAmount = Amount(0);
 				inflationAmount = Amount(0);
@@ -127,7 +139,17 @@ namespace catapult { namespace observers {
 			// add inflation receipt
 			if (Amount() != inflationAmount && NotifyMode::Commit == context.Mode) {
 				model::InflationReceipt receipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, inflationAmount);
+				model::InflationReceipt average30Receipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount((int64_t)(average30 * 100000)));
+				model::InflationReceipt average60Receipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount((int64_t)(average60 * 100000)));
+				model::InflationReceipt average90Receipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount((int64_t)(average90 * 100000)));
+				model::InflationReceipt average120Receipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount((int64_t)(average120 * 100000)));
+				model::InflationReceipt multiplierReceipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount((int64_t)(multiplier * 100000)));
 				context.StatementBuilder().addReceipt(receipt);
+				context.StatementBuilder().addReceipt(average30Receipt);
+				context.StatementBuilder().addReceipt(average60Receipt);
+				context.StatementBuilder().addReceipt(average90Receipt);
+				context.StatementBuilder().addReceipt(average120Receipt);
+				context.StatementBuilder().addReceipt(multiplierReceipt);
 			}
 		}));
 	}

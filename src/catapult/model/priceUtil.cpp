@@ -45,6 +45,7 @@ namespace catapult { namespace plugins {
     void readConfig() {
         std::string line;
         std::ifstream fr("./data/config.txt");
+        cache::RocksDatabase priceDB(priceSettings, true);
         try {
             getline(fr, line);
             initialSupply = stoul(line);
@@ -114,6 +115,9 @@ namespace catapult { namespace plugins {
     }
 
     double getMultiplier(double increase30, double increase60, double increase90) {
+        if (pricePeriodBlocks == 0) {
+            return 0;
+        }
         uint64_t pricePeriodsPerYear = 1051200 / pricePeriodBlocks; // 1051200 - number of blocks in a year
         double min;
         increase30 = approximate(increase30);
@@ -377,7 +381,7 @@ namespace catapult { namespace plugins {
     }
 
     void loadTempPricesFromFile(uint64_t fromHeight, uint64_t toHeight) {
-        cache::RocksDatabase priceDB(priceSettings, true);
+        cache::RocksDatabase priceDB(priceSettings, true, true);
         cache::RdbDataIterator result;
         std::string values[PRICE_DATA_SIZE - 1] = {""};
         uint64_t key = fromHeight;
@@ -403,7 +407,7 @@ namespace catapult { namespace plugins {
         if (blockHeight <= 1) {
             return;
         }
-        cache::RocksDatabase priceDB(priceSettings, true);
+        cache::RocksDatabase priceDB(priceSettings, true, true);
         cache::RdbDataIterator result;
         std::string values[PRICE_DATA_SIZE - 1] = {""};
         uint64_t key = blockHeight - 4 * pricePeriodBlocks - entryLifetime;
