@@ -35,6 +35,7 @@ namespace catapult { namespace plugins {
 			if (transaction.lowPrice && transaction.highPrice) {
 				sub.notify(PriceMessageNotification(
 						transaction.SignerPublicKey,
+						(uint64_t)0,
 						transaction.lowPrice,
 						transaction.highPrice));
 			}
