@@ -165,22 +165,25 @@ namespace catapult { namespace model {
 			CopyTransactions(pDestination, transactions);
 			uint64_t inflation;
 			double increase;
-			
-			if (catapult::plugins::initialSupply == 0) {
+
+			if (catapult::plugins::feeRecalculationFrequency == 0) {
 				catapult::plugins::readConfig();
 			}
 
-			if (context.BlockHeight.unwrap() == 1) {
+			// Nemesis block
+			if (context.BlockHeight.unwrap() == 0) {
 				pBlock->totalSupply = catapult::plugins::initialSupply;
 				pBlock->inflationMultiplier = 0;
+				pBlock->inflation = 0;
+				pBlock->feeToPay = 0;
+				pBlock->collectedEpochFees = 0;
+				return pBlock;
 			} else {
 				pBlock->totalSupply = context.totalSupply;
 				pBlock->inflationMultiplier = context.inflationMultiplier;
 			}
-			if ((context.BlockHeight.unwrap()) % catapult::plugins::multiplierRecalculationFrequency == 0) {
+			if (context.BlockHeight.unwrap() > 1 && context.BlockHeight.unwrap() % catapult::plugins::multiplierRecalculationFrequency == 0) {
 				CATAPULT_LOG(error) << "BLOCK HEIGHT (RECALCULATION): " << context.BlockHeight.unwrap() + 1;
-				catapult::plugins::priceList.clear();
-				catapult::plugins::loadPricesFromFile(context.BlockHeight.unwrap());
 				increase = catapult::plugins::getCoinGenerationMultiplier(context.BlockHeight.unwrap() + 1);
 				pBlock->inflationMultiplier = pBlock->inflationMultiplier + increase;
 				if (catapult::plugins::areSame(increase, 0)) {
@@ -233,6 +236,10 @@ namespace catapult { namespace model {
 		auto* pDestination = reinterpret_cast<uint8_t*>(pBlock->TransactionsPtr());
 		CopyTransactions(pDestination, transactions);
 		
+		if (catapult::plugins::feeRecalculationFrequency == 0) {
+			catapult::plugins::readConfig();
+		}
+
 		CATAPULT_LOG(error) << "Stitching, BLOCK HEIGHT: " << blockHeader.Height.unwrap();
 		auto info = CalculateBlockTransactionsInfo(*pBlock);
 		if ((blockHeader.Height.unwrap() - 1) % catapult::plugins::feeRecalculationFrequency == 0) {

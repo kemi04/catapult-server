@@ -48,7 +48,7 @@ namespace catapult { namespace observers {
 		std::transform(receivedFrom.begin(), receivedFrom.end(), receivedFrom.begin(), ::toupper);
 
 		if (catapult::plugins::pricePublisherPublicKey == receivedFrom) {
-			catapult::plugins::processPriceTransaction(notification.blockHeight, notification.lowPrice,
+			catapult::plugins::processPriceTransaction(context.Height.unwrap(), notification.lowPrice,
 				notification.highPrice, context.Mode == NotifyMode::Rollback);
 		}
 	})

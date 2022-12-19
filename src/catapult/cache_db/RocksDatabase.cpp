@@ -149,7 +149,7 @@ namespace catapult { namespace cache {
 
 	RocksDatabase::RocksDatabase() = default;
 
-	RocksDatabase::RocksDatabase(const RocksDatabaseSettings& settings, bool retryLock)
+	RocksDatabase::RocksDatabase(const RocksDatabaseSettings& settings, bool retryLock, bool readOnly)
 			: m_settings(settings)
 			, m_pruningFilter(m_settings.PruningMode)
 			, m_pWriteBatch(std::make_unique<rocksdb::WriteBatch>()) {
@@ -166,16 +166,50 @@ namespace catapult { namespace cache {
 
 		rocksdb::DB* pDb;
 		auto dbOptions = CreateDatabaseOptions(m_settings.DatabaseConfig);
-		auto status = rocksdb::DB::Open(dbOptions, m_settings.DatabaseDirectory, columnFamilies, &m_handles, &pDb);
+
+		rocksdb::Status status;
+		if (readOnly) {
+			dbOptions.max_open_files = -1;
+			status = rocksdb::DB::OpenAsSecondary(dbOptions, m_settings.DatabaseDirectory, m_settings.DatabaseDirectory + "_secondary", 
+					columnFamilies, &m_handles, &pDb);
+		} else {
+			status = rocksdb::DB::Open(dbOptions, m_settings.DatabaseDirectory, columnFamilies, &m_handles, &pDb);
+		}
+
 		m_pDb.reset(pDb);
 		while (!status.ok()) {
-			if (lockAttempts > 100 || !retryLock)
+			// if the directory is not found, create it
+			if (status.ToString().find("No such file or directory") != std::string::npos) {
+				status = rocksdb::DB::Open(dbOptions, m_settings.DatabaseDirectory, columnFamilies, &m_handles, &pDb);
+				m_pDb.reset(pDb);
+				continue;
+			}
+			if (lockAttempts > 10 || !retryLock) 
 				CATAPULT_THROW_RUNTIME_ERROR_2("couldn't open database", m_settings.DatabaseDirectory, status.ToString());
 
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			lockAttempts++;
-			status = rocksdb::DB::Open(dbOptions, m_settings.DatabaseDirectory, columnFamilies, &m_handles, &pDb);
+			if (readOnly) {
+				dbOptions.max_open_files = -1;
+				status = rocksdb::DB::OpenAsSecondary(dbOptions, m_settings.DatabaseDirectory, m_settings.DatabaseDirectory + "_secondary", 
+					columnFamilies, &m_handles, &pDb);
+			} else {
+				status = rocksdb::DB::Open(dbOptions, m_settings.DatabaseDirectory, columnFamilies, &m_handles, &pDb);
+			}
 			m_pDb.reset(pDb);
+		}
+	}
+
+	void RocksDatabase::catchup() {
+		int attempts = 0;
+		rocksdb::Status status = m_pDb->TryCatchUpWithPrimary();
+		while (!status.ok()) {
+			if (attempts > 10) {
+				CATAPULT_THROW_RUNTIME_ERROR_2("Secondary database couldn't catch up with the primary", m_settings.DatabaseDirectory, status.ToString());	
+			}
+			attempts++;
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+			status = m_pDb->TryCatchUpWithPrimary();		
 		}
 	}
 

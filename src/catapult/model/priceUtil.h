@@ -6,6 +6,7 @@
 #include "catapult/cache_db/RocksDatabase.h"
 #include "catapult/cache_db/RocksInclude.h"
 #include <mutex>
+#include "memory.h"
 
 #ifdef __APPLE__
 #define NODESTROY [[clang::no_destroy]]
@@ -36,19 +37,25 @@ namespace catapult {
         // total supply and epoch fee entry life timein terms of blocks
         extern uint64_t entryLifetime;
 
+        extern std::unique_ptr<cache::RocksDatabase> priceDB;
+        // block height, low price, high price
         extern std::deque<std::tuple<uint64_t, uint64_t, uint64_t>> priceList;
-        extern std::deque<std::tuple<uint64_t, uint64_t, uint64_t>> tempPriceList;
+        // block height, low price, high price, isAdded
+        extern std::deque<std::tuple<uint64_t, uint64_t, uint64_t, bool>> tempPriceList;
 
         // max number of coins
         extern uint64_t generationCeiling;
+        extern uint64_t lastUpdatedBlock;
         extern const std::string priceDirectory;
         extern std::vector<std::string> priceFields;
         extern cache::RocksDatabaseSettings priceSettings;
+        extern bool loaded;
 
         //region block_reward
         bool areSame(double a, double b);
         void configToFile();
         void readConfig();
+        void readConfig(bool readOnlyDB);
         double approximate(double number);
         double getCoinGenerationMultiplier(uint64_t blockHeight);
         double getMultiplier(double increase30, double increase60, double increase90);
@@ -61,13 +68,19 @@ namespace catapult {
         //region price_helper
 
         void removeOldPrices(uint64_t blockHeight);
-        bool addPrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, bool addToFile = true, bool tempPrice = false);
-        void removePrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice);
-        void addPriceEntryToFile(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice);        
-        void updatePricesFile(bool tempPrice = false);
-        void loadPricesFromFile(uint64_t blockHeight);
-        void loadTempPricesFromFile(uint64_t fromHeight, uint64_t toHeight);
         void processPriceTransaction(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice, bool rollback = false);
+        void addPriceEntryToFile(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice);
+    
+        void addPriceToDb(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice);
+        void removePriceFromDb(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice);
+        void commitPriceChanges();
+        void addPriceFromDB(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice);
+        void addTempPrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice);
+        void removeTempPrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice);
+        void dbCatchup();
+        void initLoad(uint64_t blockHeight);
+        // load prices (the upper boundary is not included)
+        void loadPricesForBlockRange(uint64_t from, uint64_t to);
 
         //endregion price_helper
 	}

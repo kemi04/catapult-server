@@ -38,8 +38,6 @@ namespace catapult { namespace model {
 		DEFINE_TRANSACTION_CONSTANTS(Entity_Type_Price, 1)
 
 	public:
-		uint64_t blockHeight;
-		// High and low prices
 		uint64_t highPrice;
 		uint64_t lowPrice;
 

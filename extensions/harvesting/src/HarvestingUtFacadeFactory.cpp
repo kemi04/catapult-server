@@ -29,6 +29,7 @@
 #include "catapult/model/BlockUtils.h"
 #include "catapult/model/FeeUtils.h"
 #include "catapult/model/VotingSet.h"
+#include "catapult/model/priceUtil.h"
 #include "catapult/observers/DemuxObserverBuilder.h"
 
 namespace catapult { namespace harvesting {
@@ -176,9 +177,22 @@ namespace catapult { namespace harvesting {
 				}
 			}
 
+			if (!catapult::plugins::loaded) {
+				catapult::plugins::loaded = true;
+				catapult::plugins::readConfig(true);
+				catapult::plugins::initLoad(blockHeader.Height.unwrap());
+				catapult::plugins::lastUpdatedBlock = blockHeader.Height.unwrap();
+			} else {
+				catapult::plugins::dbCatchup();
+				// Reload earlier blocks as well in case of a rollback
+				catapult::plugins::loadPricesForBlockRange(catapult::plugins::lastUpdatedBlock - 100, blockHeader.Height.unwrap());
+				catapult::plugins::lastUpdatedBlock = blockHeader.Height.unwrap();
+			}
+
 			// 3. execute block (using zero hash)
-			if (!apply(model::WeakEntityInfo(*pBlock, Hash256())))
+			if (!apply(model::WeakEntityInfo(*pBlock, Hash256()))) {
 				return nullptr;
+			}
 
 			// 4. update account states
 			updateAccountStates(accountStateCacheDelta);
@@ -216,7 +230,6 @@ namespace catapult { namespace harvesting {
 				auto& blockFooter = model::GetBlockFooter<model::ImportanceBlockFooter>(*pBlock);
 				blockFooter.PreviousImportanceBlockHash = m_importanceBlockHashSupplier(groupingFacade.previous(1));
 			}
-
 			return pBlock;
 		}
 

@@ -162,21 +162,22 @@ namespace catapult { namespace consumers {
 
 		private:
 			ConsumerResult sync(BlockElements& elements, InputSource source) const {
+				if (!catapult::plugins::loaded) {
+					catapult::plugins::loaded = true;
+					catapult::plugins::readConfig(false);
+					catapult::plugins::initLoad(m_storage.view().chainHeight().unwrap());
+				}
+				
 				// 1. preprocess the peer and local chains and extract the sync state
 				SyncState syncState;
-				bool backup = false;
-				auto intermediateResult = preprocess(elements, source, syncState, backup);
+				auto intermediateResult = preprocess(elements, source, syncState);
 				if (IsAborted(intermediateResult)) {
-					if (backup) {
-						catapult::plugins::updatePricesFile(true);
-					}
 					return intermediateResult;
 				}
 
 				// 2. validate and execute the peer chain
 				intermediateResult = process(elements, syncState);
 				if (IsAborted(intermediateResult)) {
-					catapult::plugins::updatePricesFile(true);
 					return intermediateResult;
 				}
 
@@ -185,7 +186,7 @@ namespace catapult { namespace consumers {
 				return Continue();
 			}
 
-			ConsumerResult preprocess(const BlockElements& elements, InputSource source, SyncState& syncState, bool& backup) const {
+			ConsumerResult preprocess(const BlockElements& elements, InputSource source, SyncState& syncState) const {
 				// 0. retrieve finalized height hash pairs (this needs to happen before taking storage lock because
 				//    LocalFinalizedHeightHashPairSupplier takes a storage lock)
 				auto localFinalizedHeightHashPair = m_handlers.LocalFinalizedHeightHashPairSupplier();
@@ -216,11 +217,6 @@ namespace catapult { namespace consumers {
 				syncState = SyncState(m_cache, localFinalizedHeight, storageView.loadBlock(localFinalizedHeight)->Timestamp);
 				auto commonBlockHeight = peerStartHeight - Height(1);
 				auto observerState = syncState.observerState();
-
-				CATAPULT_LOG(error) << "Loading prices to temp storage";
-				backup = true;
-				catapult::plugins::tempPriceList.clear();
-				catapult::plugins::loadTempPricesFromFile(commonBlockHeight.unwrap() + 1, localChainHeight.unwrap());
 
 				auto unwindResult = unwindLocalChain(localChainHeight, commonBlockHeight, storageView, observerState);
 				const auto& localScore = unwindResult.Score;
@@ -276,6 +272,7 @@ namespace catapult { namespace consumers {
 
 			ConsumerResult process(BlockElements& elements, SyncState& syncState) const {
 				auto observerState = syncState.observerState();
+				catapult::plugins::tempPriceList.clear();
 				auto processResult = m_handlers.Processor(syncState.commonBlockInfo(), elements, observerState);
 				if (!validators::IsValidationResultSuccess(processResult)) {
 					CATAPULT_LOG(warning) << "processing of peer chain failed with " << processResult;
@@ -307,6 +304,7 @@ namespace catapult { namespace consumers {
 
 			void commitAll(const BlockElements& elements, SyncState& syncState) const {
 				utils::SlowOperationLogger logger("BlockChainSyncConsumer::commitAll", utils::LogLevel::warning);
+				catapult::plugins::commitPriceChanges();
 
 				// 1. save the peer chain into storage
 				logger.addSubOperation("save the peer chain into storage");

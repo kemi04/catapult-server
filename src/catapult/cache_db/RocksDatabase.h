@@ -137,7 +137,7 @@ namespace catapult { namespace cache {
 		RocksDatabase();
 
 		/// Creates database around \a settings.
-		explicit RocksDatabase(const RocksDatabaseSettings& settings, bool retry = false);
+		explicit RocksDatabase(const RocksDatabaseSettings& settings, bool retry = false, bool readOnly = false);
 
 		/// Destroys database.
 		~RocksDatabase();
@@ -150,6 +150,9 @@ namespace catapult { namespace cache {
 		bool canPrune() const;
 
 	public:
+		/// Secondary db attempts to catch up with the primary db
+		void catchup();
+
 		/// Gets the value associated with \a key from \a columnId and sets \a result.
 		void get(size_t columnId, const rocksdb::Slice& key, RdbDataIterator& result);
 
