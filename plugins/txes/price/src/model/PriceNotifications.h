@@ -49,21 +49,21 @@ namespace catapult { namespace model {
 		/// Creates a notification around \a senderPublicKey, \a messageSize and \a pMessage.
 		PriceMessageNotification(
 				const Key& senderPublicKey,
-				uint64_t blockHeight,
+				uint64_t BlockHeight,
 				uint64_t LowPrice,
 				uint64_t HighPrice)
 				: Notification(Notification_Type, sizeof(PriceMessageNotification))
 				, SenderPublicKey(senderPublicKey)
+				, blockHeight(BlockHeight)
 				, lowPrice(LowPrice)
 				, highPrice(HighPrice)
-		{
-			uint64_t temp = blockHeight;
-			blockHeight = temp;
-		}
+		{}
 
 	public:
 		/// Message sender public key.
 		const Key& SenderPublicKey;
+		
+		uint64_t blockHeight;
 
 		/// Message size in bytes.
 		uint64_t lowPrice;
