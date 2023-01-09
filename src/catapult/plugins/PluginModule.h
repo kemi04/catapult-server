@@ -22,6 +22,9 @@
 #pragma once
 #include <memory>
 #include <string>
+#include "catapult/model/priceUtil.h"
+
+typedef void (*SetFunc)(catapult::plugins::PriceDrivenModel*);
 
 namespace catapult { namespace plugins {
 
@@ -68,5 +71,6 @@ namespace catapult { namespace plugins {
 
 	private:
 		std::shared_ptr<void> m_pModule; // the system module
+		SetFunc set;
 	};
 }}

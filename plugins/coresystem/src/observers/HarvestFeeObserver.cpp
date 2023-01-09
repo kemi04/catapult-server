@@ -81,23 +81,54 @@ namespace catapult { namespace observers {
 
 	DECLARE_OBSERVER(HarvestFee, Notification)(const HarvestFeeOptions& options, const model::InflationCalculator& calculator) {
 		return MAKE_OBSERVER(HarvestFee, Notification, ([options, calculator](const Notification& notification, ObserverContext& context) {
-			
-			uint64_t feeToPay = notification.feeToPay;
-			uint64_t inflation = notification.inflation;
+			uint64_t inflation;
+			uint64_t totalSupply;
+			uint64_t feeToPay;
+			uint64_t collectedFees;
+			double inflationMultiplier;
+			catapult::plugins::ActiveValues* activeValues = catapult::plugins::priceDrivenModel->isSync ?
+				&catapult::plugins::priceDrivenModel->syncActiveValues :
+				nullptr;
+
+			// If the block comes from the harvester extension or is in rollback mode, don't validate it
+			if (activeValues == nullptr || NotifyMode::Rollback == context.Mode) {
+				inflation = notification.inflation;
+				totalSupply = notification.totalSupply;
+				feeToPay = notification.feeToPay;
+				collectedFees = notification.collectedEpochFees;
+				inflationMultiplier = notification.inflationMultiplier;
+			} else {
+				if (context.Height.unwrap() % catapult::plugins::priceDrivenModel->config.feeRecalculationFrequency == 0) {
+					activeValues->feeToPay = 
+						static_cast<unsigned int>(static_cast<double>(activeValues->collectedFees) / 
+						static_cast<double>(catapult::plugins::priceDrivenModel->config.feeRecalculationFrequency) + 0.5);
+
+					activeValues->collectedFees = notification.TotalFee.unwrap();
+				} else {
+					activeValues->collectedFees += notification.TotalFee.unwrap();
+				}
+				
+				if (context.Height.unwrap() % catapult::plugins::priceDrivenModel->config.multiplierRecalculationFrequency == 0) {
+					double increase = catapult::plugins::priceDrivenModel->getCoinGenerationMultiplier(context.Height.unwrap());
+					activeValues->inflationMultiplier += increase;
+					if (catapult::plugins::priceDrivenModel->areSame(increase, 0)) {
+						activeValues->inflationMultiplier = 0;
+					} else if (activeValues->inflationMultiplier > 94) {
+						activeValues->inflationMultiplier = 94;
+					}
+				}
+
+				inflation = static_cast<uint64_t>(static_cast<double>(activeValues->totalSupply) / 105120000 * (2 + activeValues->inflationMultiplier) + 0.5);
+				activeValues->totalSupply += inflation;
+				totalSupply = activeValues->totalSupply;
+				feeToPay = activeValues->feeToPay;
+				collectedFees = activeValues->collectedFees;
+				inflationMultiplier = activeValues->inflationMultiplier;
+			}
+
 			Amount inflationAmount = Amount(inflation);
 			Amount totalAmount = Amount(inflation + feeToPay);
 
-			double average30, average60, average90, average120;
-			catapult::plugins::getAverage(context.Height.unwrap(), average30, average60, average90, average120);
-			double increase30 = average30 / average60;
-			double increase60 = catapult::plugins::areSame(average90, 0) ? 0 : average60 / average90;
-			double increase90 = catapult::plugins::areSame(average120, 0) ? 0 : average90 / average120;
-			double multiplier = catapult::plugins::getMultiplier(increase30, increase60, increase90);
-
-			if (context.Height.unwrap() == 1) {
-				totalAmount = Amount(0);
-				inflationAmount = Amount(0);
-			}
 			auto networkAmount = Amount(totalAmount.unwrap() * options.HarvestNetworkPercentage / 100);
 			auto beneficiaryAmount = ShouldShareFees(notification, options.HarvestBeneficiaryPercentage)
 					? Amount(totalAmount.unwrap() * options.HarvestBeneficiaryPercentage / 100)
@@ -107,16 +138,17 @@ namespace catapult { namespace observers {
 			CATAPULT_LOG(error) << "BLOCK INFORMATION";
 			CATAPULT_LOG(error) << "Block: " << context.Height.unwrap();
 			CATAPULT_LOG(error) << "Commit: " << (NotifyMode::Commit == context.Mode);
+			CATAPULT_LOG(error) << "Synchronizer extension: " << catapult::plugins::priceDrivenModel->isSync;
 			CATAPULT_LOG(error) << "Beneficiary: " << model::AddressToString(notification.Beneficiary);
 			CATAPULT_LOG(error) << "Amount: " << beneficiaryAmount.unwrap();
 			CATAPULT_LOG(error) << "Harvester: " << model::AddressToString(notification.Harvester);
 			CATAPULT_LOG(error) << "Amount: " << harvesterAmount.unwrap();
 			CATAPULT_LOG(error) << "Total block fees: " << notification.TotalFee;
-			CATAPULT_LOG(error) << "Fee To Pay: " << feeToPay;
-			CATAPULT_LOG(error) << "Inflation: " << inflation;
-			CATAPULT_LOG(error) << "Total Supply: " << notification.totalSupply;
-			CATAPULT_LOG(error) << "Collected Fees: " << notification.collectedEpochFees;
-			CATAPULT_LOG(error) << "Inflation multiplier: " << notification.inflationMultiplier;
+			CATAPULT_LOG(error) << "Fee To Pay: " << feeToPay << " vs " << notification.feeToPay;
+			CATAPULT_LOG(error) << "Inflation: " << inflation << " vs " << notification.inflation;
+			CATAPULT_LOG(error) << "Total Supply: " << totalSupply << " vs " << notification.totalSupply;
+			CATAPULT_LOG(error) << "Collected Fees: " << collectedFees << " vs " << notification.collectedEpochFees;
+			CATAPULT_LOG(error) << "Inflation multiplier: " << inflationMultiplier << " vs " << notification.inflationMultiplier;
 			CATAPULT_LOG(error) << "";
 
 			// always create receipt for harvester
@@ -134,17 +166,17 @@ namespace catapult { namespace observers {
 			// add inflation receipt
 			if (Amount() != inflationAmount && NotifyMode::Commit == context.Mode) {
 				model::InflationReceipt receipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, inflationAmount);
-				model::InflationReceipt average30Receipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount((int64_t)(average30 * 100000)));
-				model::InflationReceipt average60Receipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount((int64_t)(average60 * 100000)));
-				model::InflationReceipt average90Receipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount((int64_t)(average90 * 100000)));
-				model::InflationReceipt average120Receipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount((int64_t)(average120 * 100000)));
-				model::InflationReceipt multiplierReceipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount((int64_t)(multiplier * 100000)));
+				model::InflationReceipt inflationMultiplierReceipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, 
+					Amount(static_cast<uint64_t>(inflationMultiplier)));
+				model::InflationReceipt totalSupplyReceipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount(totalSupply));
+				model::InflationReceipt feeToPayReceipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount(feeToPay));
+				model::InflationReceipt collectedFeesReceipt(model::Receipt_Type_Inflation, options.CurrencyMosaicId, Amount(collectedFees));
+
 				context.StatementBuilder().addReceipt(receipt);
-				context.StatementBuilder().addReceipt(average30Receipt);
-				context.StatementBuilder().addReceipt(average60Receipt);
-				context.StatementBuilder().addReceipt(average90Receipt);
-				context.StatementBuilder().addReceipt(average120Receipt);
-				context.StatementBuilder().addReceipt(multiplierReceipt);
+				context.StatementBuilder().addReceipt(inflationMultiplierReceipt);
+				context.StatementBuilder().addReceipt(totalSupplyReceipt);
+				context.StatementBuilder().addReceipt(feeToPayReceipt);
+				context.StatementBuilder().addReceipt(collectedFeesReceipt);
 			}
 		}));
 	}

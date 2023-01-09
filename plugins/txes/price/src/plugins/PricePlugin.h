@@ -21,6 +21,7 @@
 
 #pragma once
 #include "catapult/plugins.h"
+#include "catapult/model/priceUtil.h"
 
 namespace catapult { namespace plugins { class PluginManager; } }
 
@@ -29,4 +30,7 @@ namespace catapult { namespace plugins {
 	/// Registers price support with \a manager.
 	PLUGIN_API
 	void RegisterPriceSubsystem(PluginManager& manager);
+
+	PLUGIN_API
+	void setPriceModelAddress(catapult::plugins::PriceDrivenModel* ptr);
 }}

@@ -78,11 +78,23 @@ namespace catapult { namespace plugins {
 	PluginModule::PluginModule(const std::string& directory, const std::string& name) : PluginModule(directory, name, Scope::Local)
 	{}
 
+	bool needsPriceData(std::string name) {
+		return (name == "catapult.plugins.price") ||
+			(name == "extension.harvesting") ||
+			(name == "extension.sync") || 
+			(name == "catapult.plugins.coresystem");
+	}
+
 	PluginModule::PluginModule(const std::string& directory, const std::string& name, Scope scope) {
 		auto pluginPath = GetPluginPath(directory, name);
 		CATAPULT_LOG(info) << "loading plugin from " << pluginPath;
 
-		m_pModule = std::shared_ptr<void>(CatapultLoad(pluginPath, scope), [pluginPath](auto* pModule) {
+		if (priceDrivenModel.get() == nullptr) {
+			priceDrivenModel = std::unique_ptr<PriceDrivenModel, Op>();
+			priceDrivenModel.reset(new PriceDrivenModel());
+		}
+
+		m_pModule = std::shared_ptr<void>(CatapultLoad(pluginPath, scope), [pluginPath, name, this](auto* pModule) {
 			if (!pModule)
 				return;
 
@@ -92,8 +104,11 @@ namespace catapult { namespace plugins {
 
 		if (!m_pModule)
 			CATAPULT_THROW_INVALID_ARGUMENT_1("unable to find plugin", pluginPath);
-
-		CATAPULT_LOG(debug) << "plugin " << pluginPath << " loaded as " << m_pModule.get();
+		
+		if (needsPriceData(name)) {
+			set = reinterpret_cast<void (*)(PriceDrivenModel*)>(symbolVoid("setPriceModelAddress"));
+			set(priceDrivenModel.get());
+		}
 	}
 
 	void* PluginModule::symbolVoid(const char* symbolName) const {

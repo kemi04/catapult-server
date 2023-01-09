@@ -246,3 +246,8 @@ extern "C" PLUGIN_API
 void RegisterSubsystem(catapult::plugins::PluginManager& manager) {
 	catapult::plugins::RegisterCoreSystem(manager);
 }
+
+extern "C" PLUGIN_API
+void setPriceModelAddress(catapult::plugins::PriceDrivenModel* ptr) {
+	catapult::plugins::priceDrivenModel.reset(ptr);
+}

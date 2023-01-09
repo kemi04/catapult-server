@@ -135,7 +135,11 @@ namespace catapult { namespace harvesting {
 				m_beneficiary);
 
 		AddGenerationHashProof(*pBlockHeader, vrfProof);
+		catapult::plugins::priceDrivenModel->mtx.lock();
+		catapult::plugins::priceDrivenModel->activeValues.tempPriceList.clear();
+		catapult::plugins::priceDrivenModel->isSync = false;
 		auto pBlock = m_blockGenerator(*pBlockHeader, m_config.MaxTransactionsPerBlock);
+		catapult::plugins::priceDrivenModel->mtx.unlock();
 		if (pBlock)
 			SignBlockHeader(*pHarvesterKeyPair, *pBlock);
 

@@ -28,22 +28,19 @@
 #include "catapult/crypto/OpensslKeyUtils.h"
 #include "catapult/model/Address.h"
 #include "catapult/plugins/PluginManager.h"
-#include "catapult/model/priceUtil.h"
 #include "src/config/PriceConfiguration.h"
 #include <string>
 
 namespace catapult { namespace plugins {
-
 	void RegisterPriceSubsystem(PluginManager& manager) {
 		auto config = catapult::model::LoadPluginConfiguration<config::PriceConfiguration>(manager.config(), "catapult.plugins.price");
-		catapult::plugins::initialSupply = config.initialSupply;
-		catapult::plugins::pricePublisherPublicKey = config.pricePublisherPublicKey;
-		catapult::plugins::feeRecalculationFrequency = config.feeRecalculationFrequency;
-		catapult::plugins::multiplierRecalculationFrequency = config.multiplierRecalculationFrequency;
-		catapult::plugins::pricePeriodBlocks = config.pricePeriodBlocks;
-		catapult::plugins::entryLifetime = config.entryLifetime;
-		catapult::plugins::generationCeiling = config.generationCeiling;
-		configToFile();
+		priceDrivenModel->config.initialSupply = config.initialSupply;
+		priceDrivenModel->config.pricePublisherPublicKey = config.pricePublisherPublicKey;
+		priceDrivenModel->config.feeRecalculationFrequency = config.feeRecalculationFrequency;
+		priceDrivenModel->config.multiplierRecalculationFrequency = config.multiplierRecalculationFrequency;
+		priceDrivenModel->config.pricePeriodBlocks = config.pricePeriodBlocks;
+		priceDrivenModel->config.entryLifetime = config.entryLifetime;
+		priceDrivenModel->config.generationCeiling = config.generationCeiling;
 
 		manager.addTransactionSupport(CreatePriceTransactionPlugin());
     
@@ -60,4 +57,9 @@ namespace catapult { namespace plugins {
 extern "C" PLUGIN_API
 void RegisterSubsystem(catapult::plugins::PluginManager& manager) {
 	catapult::plugins::RegisterPriceSubsystem(manager);
+}
+
+extern "C" PLUGIN_API
+void setPriceModelAddress(catapult::plugins::PriceDrivenModel* ptr) {
+	catapult::plugins::priceDrivenModel.reset(ptr);
 }

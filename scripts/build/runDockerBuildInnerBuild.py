@@ -70,12 +70,11 @@ class BuildManager(BasicBuildManager):
 
         if self.use_conan:
             settings.append(('USE_CONAN', 'ON'))
+        else:
+            settings.append(('OPENSSL_ROOT_DIR', '/usr/catapult/deps'))
 
         if self.sanitizers:
-            settings.extend([
-                ('USE_SANITIZER', ','.join(self.sanitizers)),
-                ('OPENSSL_ROOT_DIR', '/usr/local')
-            ])
+            settings.append(('USE_SANITIZER', ','.join(self.sanitizers)))
 
         if self.is_release:
             settings.append(('CATAPULT_BUILD_RELEASE', 'ON'))
@@ -108,17 +107,19 @@ class BuildManager(BasicBuildManager):
             system_bin_path = self.environment_manager.system_bin_path
             self.environment_manager.copy_glob_with_symlinks(system_bin_path, 'lib{}.so*'.format(name), destination)
 
+        openssl_source_directory = Path('/usr/catapult/deps') 
+        self.environment_manager.mkdirs(Path(destination), exist_ok=True)
+        for name in ['crypto', 'ssl']:
+            self.environment_manager.copy_glob_with_symlinks(openssl_source_directory, f'lib{name}.so*', Path(destination))
+
+        for name in ['engines-3', 'ossl-modules']:
+            self.environment_manager.copy_tree_with_symlinks(openssl_source_directory / name, Path(destination) / name)
+
     def copy_compiler_deps(self, destination):
         for dependency_pattern in self.compiler.deps:
             directory_path = os.path.dirname(dependency_pattern)
             pattern = os.path.basename(dependency_pattern)
             self.environment_manager.copy_glob_with_symlinks(directory_path, pattern, destination)
-
-    def copy_sanitizer_deps(self, destination):
-        for name in ['crypto', 'ssl']:
-            self.environment_manager.copy_glob_with_symlinks('/usr/local/lib/', 'lib{}*'.format(name), destination)
-
-        self.environment_manager.copy_tree_with_symlinks('/usr/local/lib/engines-1.1', Path(destination) / 'engines-1.1')
 
     def copy_files(self):
         deps_output_path = '/binaries/deps'
@@ -128,8 +129,8 @@ class BuildManager(BasicBuildManager):
         self.copy_dependencies(deps_output_path)
         self.copy_compiler_deps(deps_output_path)
 
-        if self.sanitizers:
-            self.copy_sanitizer_deps(deps_output_path)
+        #if self.sanitizers:
+        #self.copy_sanitizer_deps(deps_output_path)
 
         # copy tests
         if not self.is_release:

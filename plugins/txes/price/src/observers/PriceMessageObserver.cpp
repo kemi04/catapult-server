@@ -43,12 +43,14 @@ namespace catapult { namespace observers {
 			stream << std::hex << i;
 		}
 		std::string receivedFrom(stream.str());
-		std::transform(catapult::plugins::pricePublisherPublicKey.begin(), catapult::plugins::pricePublisherPublicKey.end(),
-			catapult::plugins::pricePublisherPublicKey.begin(), ::toupper);
-		std::transform(receivedFrom.begin(), receivedFrom.end(), receivedFrom.begin(), ::toupper);
+		std::transform(catapult::plugins::priceDrivenModel->config.pricePublisherPublicKey.begin(), 
+			catapult::plugins::priceDrivenModel->config.pricePublisherPublicKey.end(),
+			catapult::plugins::priceDrivenModel->config.pricePublisherPublicKey.begin(), ::toupper);
 
-		if (catapult::plugins::pricePublisherPublicKey == receivedFrom) {
-			catapult::plugins::processPriceTransaction(context.Height.unwrap(), notification.lowPrice,
+		std::transform(receivedFrom.begin(), receivedFrom.end(), receivedFrom.begin(), ::toupper);
+		
+		if (catapult::plugins::priceDrivenModel->config.pricePublisherPublicKey == receivedFrom) {
+			catapult::plugins::priceDrivenModel->processPriceTransaction(context.Height.unwrap(), notification.lowPrice,
 				notification.highPrice, context.Mode == NotifyMode::Rollback);
 		}
 	})

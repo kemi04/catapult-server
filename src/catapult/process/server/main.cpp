@@ -22,6 +22,7 @@
 #include "catapult/extensions/ProcessBootstrapper.h"
 #include "catapult/local/server/LocalNode.h"
 #include "catapult/process/ProcessMain.h"
+#include "catapult/model/priceUtil.h"
 
 namespace {
 	constexpr auto Process_Name = "server";
@@ -29,6 +30,7 @@ namespace {
 
 int main(int argc, const char** argv) {
 	using namespace catapult;
+	plugins::isServerProcess = true;
 	return process::ProcessMain(argc, argv, Process_Name, [argc, argv](auto&& config, const auto& keys) {
 		// create bootstrapper
 		auto resourcesPath = process::GetResourcesPath(argc, argv).generic_string();

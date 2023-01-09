@@ -162,19 +162,33 @@ namespace catapult { namespace consumers {
 
 		private:
 			ConsumerResult sync(BlockElements& elements, InputSource source) const {
+				if (!catapult::plugins::priceDrivenModel->priceDb.isDataLoaded) {
+					catapult::plugins::priceDrivenModel->priceDb.isDataLoaded = true;
+					catapult::plugins::priceDrivenModel->initLoad(elements[0].Block.Height.unwrap());
+				}
+				
+				catapult::plugins::priceDrivenModel->mtx.lock();
+				catapult::plugins::priceDrivenModel->activeValues.tempPriceList.clear();
+				catapult::plugins::priceDrivenModel->isSync = true;
+				
 				// 1. preprocess the peer and local chains and extract the sync state
 				SyncState syncState;
 				auto intermediateResult = preprocess(elements, source, syncState);
-				if (IsAborted(intermediateResult))
+				if (IsAborted(intermediateResult)) {
+					catapult::plugins::priceDrivenModel->mtx.unlock();
 					return intermediateResult;
+				}
 
 				// 2. validate and execute the peer chain
 				intermediateResult = process(elements, syncState);
-				if (IsAborted(intermediateResult))
+				if (IsAborted(intermediateResult)) {
+					catapult::plugins::priceDrivenModel->mtx.unlock();
 					return intermediateResult;
+				}
 
 				// 3. commit all changes
 				commitAll(elements, syncState);
+				catapult::plugins::priceDrivenModel->mtx.unlock();
 				return Continue();
 			}
 
@@ -214,6 +228,12 @@ namespace catapult { namespace consumers {
 
 				// 5. calculate the remote chain score
 				auto pCommonBlockElement = storageView.loadBlockElement(commonBlockHeight);
+
+				catapult::plugins::priceDrivenModel->syncActiveValues.feeToPay = pCommonBlockElement->Block.feeToPay;
+				catapult::plugins::priceDrivenModel->syncActiveValues.collectedFees = pCommonBlockElement->Block.collectedEpochFees;
+				catapult::plugins::priceDrivenModel->syncActiveValues.totalSupply = pCommonBlockElement->Block.totalSupply;
+				catapult::plugins::priceDrivenModel->syncActiveValues.inflationMultiplier = pCommonBlockElement->Block.inflationMultiplier;
+				
 				auto peerScore = chain::CalculatePartialChainScore(pCommonBlockElement->Block, blocks);
 
 				// 6. do not accept a chain with the same score because two different blocks with the same height
@@ -294,6 +314,11 @@ namespace catapult { namespace consumers {
 
 			void commitAll(const BlockElements& elements, SyncState& syncState) const {
 				utils::SlowOperationLogger logger("BlockchainSyncConsumer::commitAll", utils::LogLevel::warning);
+				catapult::plugins::priceDrivenModel->commitPriceChanges();
+				catapult::plugins::priceDrivenModel->activeValues.feeToPay = catapult::plugins::priceDrivenModel->syncActiveValues.feeToPay;
+				catapult::plugins::priceDrivenModel->activeValues.collectedFees = catapult::plugins::priceDrivenModel->syncActiveValues.collectedFees;
+				catapult::plugins::priceDrivenModel->activeValues.totalSupply = catapult::plugins::priceDrivenModel->syncActiveValues.totalSupply;
+				catapult::plugins::priceDrivenModel->activeValues.inflationMultiplier = catapult::plugins::priceDrivenModel->syncActiveValues.inflationMultiplier;
 
 				// 1. save the peer chain into storage
 				logger.addSubOperation("save the peer chain into storage");

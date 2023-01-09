@@ -29,7 +29,6 @@
 #include "catapult/model/BlockchainConfiguration.h"
 #include "catapult/model/FeeUtils.h"
 #include "catapult/model/VotingSet.h"
-#include "catapult/model/priceUtil.h"
 #include "catapult/observers/DemuxObserverBuilder.h"
 
 namespace catapult { namespace harvesting {
@@ -175,18 +174,6 @@ namespace catapult { namespace harvesting {
 					auto accountStateIter = accountStateCacheDelta.find(transaction.SignerPublicKey);
 					state::ApplyFeeSurplus(accountStateIter.get(), { m_blockchainConfig.CurrencyMosaicId, surplus }, importanceHeight);
 				}
-			}
-
-			if (!catapult::plugins::loaded) {
-				catapult::plugins::loaded = true;
-				catapult::plugins::readConfig(true);
-				catapult::plugins::initLoad(blockHeader.Height.unwrap());
-				catapult::plugins::lastUpdatedBlock = blockHeader.Height.unwrap();
-			} else {
-				catapult::plugins::dbCatchup();
-				// Reload earlier blocks as well in case of a rollback
-				catapult::plugins::loadPricesForBlockRange(catapult::plugins::lastUpdatedBlock - 100, blockHeader.Height.unwrap());
-				catapult::plugins::lastUpdatedBlock = blockHeader.Height.unwrap();
 			}
 
 			// 3. execute block (using zero hash)

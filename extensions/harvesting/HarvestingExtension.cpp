@@ -23,6 +23,7 @@
 #include "src/HarvestingService.h"
 #include "src/ValidateHarvestingConfiguration.h"
 #include "catapult/extensions/ProcessBootstrapper.h"
+#include "catapult/model/priceUtil.h"
 
 namespace catapult { namespace harvesting {
 
@@ -39,4 +40,9 @@ namespace catapult { namespace harvesting {
 extern "C" PLUGIN_API
 void RegisterExtension(catapult::extensions::ProcessBootstrapper& bootstrapper) {
 	catapult::harvesting::RegisterExtension(bootstrapper);
+}
+
+extern "C" PLUGIN_API
+void setPriceModelAddress(catapult::plugins::PriceDrivenModel* ptr) {
+	catapult::plugins::priceDrivenModel.reset(ptr);
 }

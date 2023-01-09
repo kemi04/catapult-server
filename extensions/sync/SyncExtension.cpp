@@ -25,6 +25,7 @@
 #include "src/SyncService.h"
 #include "src/TasksConfiguration.h"
 #include "catapult/extensions/ProcessBootstrapper.h"
+#include "catapult/model/priceUtil.h"
 
 namespace catapult { namespace sync {
 
@@ -46,4 +47,9 @@ namespace catapult { namespace sync {
 extern "C" PLUGIN_API
 void RegisterExtension(catapult::extensions::ProcessBootstrapper& bootstrapper) {
 	catapult::sync::RegisterExtension(bootstrapper);
+}
+
+extern "C" PLUGIN_API
+void setPriceModelAddress(catapult::plugins::PriceDrivenModel* ptr) {
+	catapult::plugins::priceDrivenModel.reset(ptr);
 }

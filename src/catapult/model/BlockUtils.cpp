@@ -163,16 +163,10 @@ namespace catapult { namespace model {
 			// append all the transactions
 			auto* pDestination = reinterpret_cast<uint8_t*>(pBlock->TransactionsPtr());
 			CopyTransactions(pDestination, transactions);
-			uint64_t inflation;
-			double increase;
-
-			if (catapult::plugins::feeRecalculationFrequency == 0) {
-				catapult::plugins::readConfig();
-			}
 
 			// Nemesis block
 			if (context.BlockHeight.unwrap() == 0) {
-				pBlock->totalSupply = catapult::plugins::initialSupply;
+				pBlock->totalSupply = catapult::plugins::priceDrivenModel->config.initialSupply;
 				pBlock->inflationMultiplier = 0;
 				pBlock->inflation = 0;
 				pBlock->feeToPay = 0;
@@ -182,27 +176,10 @@ namespace catapult { namespace model {
 				pBlock->totalSupply = context.totalSupply;
 				pBlock->inflationMultiplier = context.inflationMultiplier;
 			}
-			if (context.BlockHeight.unwrap() > 1 && context.BlockHeight.unwrap() % catapult::plugins::multiplierRecalculationFrequency == 0) {
-				CATAPULT_LOG(error) << "BLOCK HEIGHT (RECALCULATION): " << context.BlockHeight.unwrap() + 1;
-				increase = catapult::plugins::getCoinGenerationMultiplier(context.BlockHeight.unwrap() + 1);
-				pBlock->inflationMultiplier = pBlock->inflationMultiplier + increase;
-				if (catapult::plugins::areSame(increase, 0)) {
-					pBlock->inflationMultiplier = 0;
-					CATAPULT_LOG(error) << "RESET: " << context.BlockHeight.unwrap() + 1;
-				} else if (pBlock->inflationMultiplier > 94) {
-					pBlock->inflationMultiplier = 94;
-				}
-				CATAPULT_LOG(error) << "MULTIPLIER BLOCK UTILS: " << pBlock->inflationMultiplier;
-			}
-			inflation = static_cast<uint64_t>(static_cast<double>(pBlock->totalSupply) / 105120000 /* 365 * 24 * 60 * 2 * 100 */ * (2 + pBlock->inflationMultiplier) + 0.5);
-			if (context.totalSupply + inflation > catapult::plugins::generationCeiling) {
-				inflation = catapult::plugins::generationCeiling - context.totalSupply;
-			}
-			pBlock->totalSupply += inflation;
-			pBlock->inflation = inflation;
 
-			if (context.BlockHeight.unwrap() % catapult::plugins::feeRecalculationFrequency == 0) {
-				pBlock->feeToPay = static_cast<unsigned int>(static_cast<double>(context.collectedEpochFees) / static_cast<double>(catapult::plugins::feeRecalculationFrequency) + 0.5);
+			if ((context.BlockHeight.unwrap() + 1) % catapult::plugins::priceDrivenModel->config.feeRecalculationFrequency == 0) {
+				pBlock->feeToPay = static_cast<unsigned int>(static_cast<double>(context.collectedEpochFees) /
+					static_cast<double>(catapult::plugins::priceDrivenModel->config.feeRecalculationFrequency) + 0.5);
 				pBlock->collectedEpochFees = 0;
 			} else {
 				pBlock->feeToPay = context.feeToPay;
@@ -226,6 +203,8 @@ namespace catapult { namespace model {
 		auto size = headerSize + CalculateTotalSize(transactions);
 		auto pBlock = utils::MakeUniqueWithSize<Block>(size);
 		auto* pBlockData = reinterpret_cast<uint8_t*>(pBlock.get());
+		uint64_t inflation;
+		double increase;
 
 		// only copy BlockHeader and zero header footer
 		std::memcpy(pBlockData, &blockHeader, sizeof(BlockHeader));
@@ -235,19 +214,29 @@ namespace catapult { namespace model {
 		// append all the transactions
 		auto* pDestination = reinterpret_cast<uint8_t*>(pBlock->TransactionsPtr());
 		CopyTransactions(pDestination, transactions);
-		
-		if (catapult::plugins::feeRecalculationFrequency == 0) {
-			catapult::plugins::readConfig();
-		}
 
-		CATAPULT_LOG(error) << "Stitching, BLOCK HEIGHT: " << blockHeader.Height.unwrap();
+		if (blockHeader.Height.unwrap() % catapult::plugins::priceDrivenModel->config.multiplierRecalculationFrequency == 0) {
+			increase = catapult::plugins::priceDrivenModel->getCoinGenerationMultiplier(blockHeader.Height.unwrap());
+			pBlock->inflationMultiplier = pBlock->inflationMultiplier + increase;
+			if (catapult::plugins::priceDrivenModel->areSame(increase, 0)) {
+				pBlock->inflationMultiplier = 0;
+			} else if (pBlock->inflationMultiplier > 94) {
+				pBlock->inflationMultiplier = 94;
+			}
+		}
+		inflation = static_cast<uint64_t>(static_cast<double>(pBlock->totalSupply) / 105120000 /* 365 * 24 * 60 * 2 * 100 */ * (2 + pBlock->inflationMultiplier) + 0.5);
+		if (pBlock->totalSupply + inflation > catapult::plugins::priceDrivenModel->config.generationCeiling) {
+			inflation = catapult::plugins::priceDrivenModel->config.generationCeiling - pBlock->totalSupply;
+		}
+		pBlock->totalSupply += inflation;
+		pBlock->inflation = inflation;
+
 		auto info = CalculateBlockTransactionsInfo(*pBlock);
-		if ((blockHeader.Height.unwrap() - 1) % catapult::plugins::feeRecalculationFrequency == 0) {
+		if (blockHeader.Height.unwrap() % catapult::plugins::priceDrivenModel->config.feeRecalculationFrequency == 0) {
 			pBlock->collectedEpochFees = info.TotalFee.unwrap();
 		} else {
 			pBlock->collectedEpochFees += info.TotalFee.unwrap();
 		}
-		CATAPULT_LOG(error) << "After stitching, collectedEpochFees: " << pBlock->collectedEpochFees;
 		return pBlock;
 	}
 
