@@ -21,6 +21,7 @@
 
 #include "TransactionConsumers.h"
 #include "ConsumerResultFactory.h"
+#include "catapult/model/priceUtil.h"
 
 namespace catapult { namespace consumers {
 
@@ -40,6 +41,9 @@ namespace catapult { namespace consumers {
 			ConsumerResult operator()(disruptor::ConsumerInput& input) const {
 				if (input.empty())
 					return Abort(Failure_Consumer_Empty_Input);
+
+				catapult::plugins::priceDrivenModel->mtx.lock();
+				catapult::plugins::priceDrivenModel->activeValues.tempPriceList.clear();
 
 				// 1. split up the input into its component transactions
 				//    - detachTransactionRange transfers ownership of the range from the input
@@ -69,6 +73,9 @@ namespace catapult { namespace consumers {
 				// 4. call the sink
 				auto aggregateResult = m_newTransactionsProcessor(std::move(transactionInfos));
 				aggregateResult.FailureCount += numFailures;
+				
+				catapult::plugins::priceDrivenModel->activeValues.tempPriceList.clear();
+				catapult::plugins::priceDrivenModel->mtx.unlock();
 
 				// 5. indicate input was consumed and processing is complete
 				if (0 == aggregateResult.FailureCount)
