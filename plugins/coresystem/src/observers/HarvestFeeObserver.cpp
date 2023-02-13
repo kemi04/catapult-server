@@ -135,21 +135,21 @@ namespace catapult { namespace observers {
 					: Amount();
 			auto harvesterAmount = totalAmount - networkAmount - beneficiaryAmount;
 
-			CATAPULT_LOG(error) << "BLOCK INFORMATION";
-			CATAPULT_LOG(error) << "Block: " << context.Height.unwrap();
-			CATAPULT_LOG(error) << "Commit: " << (NotifyMode::Commit == context.Mode);
-			CATAPULT_LOG(error) << "Synchronizer extension: " << catapult::plugins::priceDrivenModel->isSync;
-			CATAPULT_LOG(error) << "Beneficiary: " << model::AddressToString(notification.Beneficiary);
-			CATAPULT_LOG(error) << "Amount: " << beneficiaryAmount.unwrap();
-			CATAPULT_LOG(error) << "Harvester: " << model::AddressToString(notification.Harvester);
-			CATAPULT_LOG(error) << "Amount: " << harvesterAmount.unwrap();
-			CATAPULT_LOG(error) << "Total block fees: " << notification.TotalFee;
-			CATAPULT_LOG(error) << "Fee To Pay: " << feeToPay << " vs " << notification.feeToPay;
-			CATAPULT_LOG(error) << "Inflation: " << inflation << " vs " << notification.inflation;
-			CATAPULT_LOG(error) << "Total Supply: " << totalSupply << " vs " << notification.totalSupply;
-			CATAPULT_LOG(error) << "Collected Fees: " << collectedFees << " vs " << notification.collectedEpochFees;
-			CATAPULT_LOG(error) << "Inflation multiplier: " << inflationMultiplier << " vs " << notification.inflationMultiplier;
-			CATAPULT_LOG(error) << "";
+			CATAPULT_LOG(debug) << "BLOCK INFORMATION";
+			CATAPULT_LOG(debug) << "Block: " << context.Height.unwrap();
+			CATAPULT_LOG(debug) << "Commit: " << (NotifyMode::Commit == context.Mode);
+			CATAPULT_LOG(debug) << "Synchronizer extension: " << catapult::plugins::priceDrivenModel->isSync;
+			CATAPULT_LOG(debug) << "Beneficiary: " << model::AddressToString(notification.Beneficiary);
+			CATAPULT_LOG(debug) << "Amount: " << beneficiaryAmount.unwrap();
+			CATAPULT_LOG(debug) << "Harvester: " << model::AddressToString(notification.Harvester);
+			CATAPULT_LOG(debug) << "Amount: " << harvesterAmount.unwrap();
+			CATAPULT_LOG(debug) << "Total block fees: " << notification.TotalFee;
+			CATAPULT_LOG(debug) << "Fee To Pay: " << feeToPay << " vs " << notification.feeToPay;
+			CATAPULT_LOG(debug) << "Inflation: " << inflation << " vs " << notification.inflation;
+			CATAPULT_LOG(debug) << "Total Supply: " << totalSupply << " vs " << notification.totalSupply;
+			CATAPULT_LOG(debug) << "Collected Fees: " << collectedFees << " vs " << notification.collectedEpochFees;
+			CATAPULT_LOG(debug) << "Inflation multiplier: " << inflationMultiplier << " vs " << notification.inflationMultiplier;
+			CATAPULT_LOG(debug) << "";
 
 			// always create receipt for harvester
 			FeeApplier applier(options.CurrencyMosaicId, context);

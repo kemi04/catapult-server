@@ -64,8 +64,8 @@ namespace catapult { namespace plugins {
         double increase30 = average30 / average60;
         double increase60 = areSame(average90, 0) ? 0 : average60 / average90;
         double increase90 = areSame(average120, 0) ? 0 : average90 / average120;
-        CATAPULT_LOG(error) << "Increase 30: " << increase30 << ", incrase 60: " << increase60 << ", increase 90: " << increase90 << "\n";
-        CATAPULT_LOG(error) << "Get multiplier: " << getMultiplier(increase30, increase60, increase90) << "\n";
+        CATAPULT_LOG(debug) << "Increase 30: " << increase30 << ", incrase 60: " << increase60 << ", increase 90: " << increase90 << "\n";
+        CATAPULT_LOG(debug) << "Get multiplier: " << getMultiplier(increase30, increase60, increase90) << "\n";
         return getMultiplier(increase30, increase60, increase90);
     }
 
@@ -175,7 +175,7 @@ namespace catapult { namespace plugins {
         if (blockHeight >= 4 * boundary)
             average120 = getRangeAverage(blockHeight - 3 * boundary, blockHeight - 4 * boundary);
 
-        CATAPULT_LOG(error) << "New averages found for block height " << blockHeight
+        CATAPULT_LOG(debug) << "New averages found for block height " << blockHeight
             <<": 30 day average : " << average30 << ", 60 day average: " << average60
             << ", 90 day average: " << average90 << ", 120 day average: " << average120 << "\n";
     }
@@ -231,7 +231,7 @@ namespace catapult { namespace plugins {
 
     void PriceDrivenModel::removeTempPrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice) {
         activeValues.tempPriceList.push_back({blockHeight, lowPrice, highPrice, false});
-        CATAPULT_LOG(error) << "Adding removed temp price: " << blockHeight << ", " << lowPrice << ", " << highPrice;
+        CATAPULT_LOG(debug) << "Adding removed temp price: " << blockHeight << ", " << lowPrice << ", " << highPrice;
     }
 
     void PriceDrivenModel::addTempPrice(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice) {
@@ -245,12 +245,12 @@ namespace catapult { namespace plugins {
             CATAPULT_LOG(error) << "Error: highPrice can't be lower than lowPrice\n";
             return;
         }
-        CATAPULT_LOG(error) << "Adding added temp price: " << blockHeight << ", " << lowPrice << ", " << highPrice;
+        CATAPULT_LOG(debug) << "Adding added temp price: " << blockHeight << ", " << lowPrice << ", " << highPrice;
         activeValues.tempPriceList.push_back({blockHeight, lowPrice, highPrice, true});
     }
 
     void PriceDrivenModel::addPriceFromDB(uint64_t blockHeight, uint64_t lowPrice, uint64_t highPrice) {
-        CATAPULT_LOG(error) << "Adding price from db: " << blockHeight << ", " << lowPrice << ", " << highPrice;
+        CATAPULT_LOG(debug) << "Adding price from db: " << blockHeight << ", " << lowPrice << ", " << highPrice;
         activeValues.priceList.push_back({blockHeight, lowPrice, highPrice});
     }
 
@@ -259,7 +259,7 @@ namespace catapult { namespace plugins {
         activeValues.priceList.push_back({blockHeight, lowPrice, highPrice});
         addPriceEntryToFile(blockHeight, lowPrice, highPrice);
 
-        CATAPULT_LOG(error) << "New price added to the list for block " << blockHeight << " , lowPrice: "
+        CATAPULT_LOG(debug) << "New price added to the list for block " << blockHeight << " , lowPrice: "
             << lowPrice << ", highPrice: " << highPrice << "\n";
     }
 
@@ -274,7 +274,7 @@ namespace catapult { namespace plugins {
                 
             if (std::get<0>(*it) == blockHeight && std::get<1>(*it) == lowPrice &&
                 std::get<2>(*it) == highPrice) {
-                CATAPULT_LOG(error) << "Price removed from the list for block " << blockHeight 
+                CATAPULT_LOG(debug) << "Price removed from the list for block " << blockHeight 
                     << ", lowPrice: " << lowPrice << ", highPrice: " << highPrice << "\n";
                 activeValues.priceList.erase(std::next(it).base());
                 break;
@@ -314,7 +314,7 @@ namespace catapult { namespace plugins {
     }
 
     void PriceDrivenModel::initLoad(uint64_t blockHeight) {
-        CATAPULT_LOG(error) << "Loading initial data from db for block " << blockHeight;
+        CATAPULT_LOG(debug) << "Loading initial data from db for block " << blockHeight;
         cache::RdbDataIterator result;
         std::string values[PRICE_DATA_SIZE - 1] = {""};
         blockHeight += config.entryLifetime;
@@ -322,7 +322,7 @@ namespace catapult { namespace plugins {
         if (key > blockHeight) {
             key = 0;
         }
-        CATAPULT_LOG(error) << "Range: " << key << " to " << blockHeight;
+        CATAPULT_LOG(debug) << "Range: " << key << " to " << blockHeight;
         while (key <= blockHeight) {
             priceDb.handle->get(0, rocksdb::Slice(std::to_string(key)), result);
             if (result.storage().empty()) {
