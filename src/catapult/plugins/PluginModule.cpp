@@ -82,7 +82,8 @@ namespace catapult { namespace plugins {
 		return (name == "catapult.plugins.price") ||
 			(name == "extension.harvesting") ||
 			(name == "extension.sync") || 
-			(name == "catapult.plugins.coresystem");
+			(name == "catapult.plugins.coresystem") ||
+			(name == "extension.partialtransaction");
 	}
 
 	PluginModule::PluginModule(const std::string& directory, const std::string& name, Scope scope) {
