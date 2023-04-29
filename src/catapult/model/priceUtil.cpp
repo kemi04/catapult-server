@@ -109,7 +109,7 @@ namespace catapult { namespace plugins {
             else if (min >= 1.35)
                 return approximate((13 + (min - 1.35) * 6) / static_cast<double>(pricePeriodsPerYear));
             else if (min >= 1.25)
-                return approximate((95 + (min - 1.25) * 3.5) / static_cast<double>(pricePeriodsPerYear));
+                return approximate((9.5 + (min - 1.25) * 3.5) / static_cast<double>(pricePeriodsPerYear));
             else if (min >= 1.15)
                 return approximate((6 + (min - 1.15) * 3.5) / static_cast<double>(pricePeriodsPerYear));
             else if (min >= 1.05)
